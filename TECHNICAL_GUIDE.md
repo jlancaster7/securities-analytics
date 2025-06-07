@@ -9,6 +9,7 @@ This guide provides comprehensive technical documentation for the fixed income a
 3. [Market Data Service](#market-data-service)
 4. [Analytics and Calculations](#analytics-and-calculations)
 5. [Best Practices](#best-practices)
+6. [QuantLib Reference](#quantlib-reference)
 
 ## Fix-to-Float Bonds
 
@@ -46,6 +47,8 @@ fixed_schedule = scheduler.generate_fixed_schedule()
 floating_schedule = scheduler.generate_floating_schedule()
 ```
 
+*For more details on QuantLib schedule generation patterns, see the [QuantLib Reference Guide](quantlib-reference.md#bonds).*
+
 #### Bond Creation
 
 The `FixToFloatBond` class creates a composite QuantLib bond:
@@ -79,6 +82,8 @@ bond = FixToFloatBond(
 1. **Fixed Period**: Standard fixed-rate coupons using `ql.FixedRateLeg`
 2. **Floating Period**: Overnight index-based coupons using `ql.OvernightLeg`
 3. **Principal**: Single redemption at maturity
+
+*For comprehensive examples of leg construction and cash flow analysis, see the [QuantLib Reference Guide](quantlib-reference.md#cash-flows-legs-and-interest-rates).*
 
 ### Analytics Support
 
@@ -300,6 +305,8 @@ z_spread = ql.BondFunctions.zSpread(
 )
 ```
 
+*For more advanced spread calculation examples and bond analytics, see the [QuantLib Reference Guide](quantlib-reference.md#bonds).*
+
 ### Risk Measures
 
 #### Duration
@@ -364,6 +371,23 @@ dv01 = bond.dv01(yield_curve_handle)
 
 ### Issue: Duration seems too high/low
 **Solution**: Verify yield curve is properly constructed
+
+## QuantLib Reference
+
+For comprehensive QuantLib documentation and examples covering all the patterns used in this service, refer to our [QuantLib Reference Guide](quantlib-reference.md). This guide contains detailed examples for:
+
+- **Bonds**: Fixed rate, floating rate, callable, amortizing, and zero-coupon bonds
+- **Indexes**: IBOR, overnight, and swap indexes with fixing management
+- **Pricing Engines**: Bond engines, option engines, and model-specific engines
+- **Term Structures**: Yield curves, volatility surfaces, and credit curves
+- **Cash Flows**: Coupons, legs, and cash flow analysis functions
+- **Practical Examples**: Complete pricing workflows and curve construction
+
+The reference guide is particularly useful for:
+1. Understanding QuantLib parameter names and signatures
+2. Finding examples for specific bond structures
+3. Learning about different interpolation methods
+4. Exploring advanced analytics and risk measures
 
 ## Future Enhancements
 

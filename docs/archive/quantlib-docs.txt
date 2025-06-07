@@ -1,0 +1,2775 @@
+Basics
+Below are the commands to set up the Quant Lib with evaluation date. Everything starts with “evaluation date” which means the date you want to value a instrument. Consider you want to value a “Swap” as of 09/16/2020, you will first set the evaluationDate in QuantLib. Underhood C++ quant library is packaged using SWIg and python is more a API calling the C++ library.
+
+Settings
+
+#import the Quant Lib
+import QuantLib as ql
+
+# Let the today date whenwe want to value a instrument be
+today = ql.Date(15,6,2020)
+
+# we can set evaluationDate in QL as
+ql.Settings.instance().evaluationDate = today
+print(ql.Settings.instance().evaluationDate);
+# prints..June 15th, 2020
+
+# or you can do
+today = ql.Date(15,12,2021);
+ql.Settings.instance().setEvaluationDate(today)
+print(ql.Settings.instance().evaluationDate)
+# prints..December 15th, 2021
+Moves date of referenced curves: Following returns the term structure based on FlatForward
+
+settlementDays = 2
+
+# Holiday calendar of united states
+calendar = ql.UnitedStates()
+
+forwardRate = 0.05
+
+"""Day Counter provides methods for determining the length of a time period according to given market convention,
+both as a number of days and as a year fraction."""
+dayCounter = ql.Actual360()
+
+# Construct flat forward rate term structure
+flatForwardTermStructure = ql.FlatForward(settlementDays, calendar, forwardRate, dayCounter)
+
+flatForwardTermStructure.referenceDate()
+
+print("Max Date: ", flatForwardTermStructure.maxDate())
+Changes evaluation date of calculation: Following shows the use of evaluation or Valuation date. Lets construct a schedule which will be used to create a leg and then we will calculate interest rate on the leg.
+
+today = ql.Date(15,6,2020)
+ql.Settings.instance().evaluationDate = today
+
+effectiveDate = ql.Date(15, 6, 2020)
+terminationDate = ql.Date(15, 6, 2022)
+Create a schedule
+
+schedule = ql.MakeSchedule(effectiveDate, terminationDate, ql.Period('6M'))
+create a fixed rate leg using helper class building a sequence of fixed rate coupons
+
+notional = [100.0]
+rate = [0.05]
+leg = ql.FixedRateLeg(schedule, dayCounter, notional, rate)
+Interest rate class encapsulate the interest rate compounding algebra. It manages day-counting conventions, compounding conventions, conversion between different conventions, discount/compound factor calculations, and implied/equivalent rate calculations.
+
+dayCounter = ql.Thirty360()
+rate = 0.03
+
+"""
+ql/Compounding.hpp
+    //! Interest rate compounding rule
+    enum Compounding { Simple = 0,          //!< \f$ 1+rt \f$
+                       Compounded = 1,      //!< \f$ (1+r)^t \f$
+                       Continuous = 2,      //!< \f$ e^{rt} \f$
+                       SimpleThenCompounded, //!< Simple up to the first period then Compounded
+                       CompoundedThenSimple //!< Compounded up to the first period then Simple
+    };
+"""
+
+compoundingType = ql.Compounded
+
+"""
+ql/time/frequency.hpp
+enum Frequency { NoFrequency = -1,     //!< null frequency
+                     Once = 0,             //!< only once, e.g., a zero-coupon
+                     Annual = 1,           //!< once a year
+                     Semiannual = 2,       //!< twice a year
+                     EveryFourthMonth = 3, //!< every fourth month
+                     Quarterly = 4,        //!< every third month
+                     Bimonthly = 6,        //!< every second month
+                     Monthly = 12,         //!< once a month
+                     EveryFourthWeek = 13, //!< every fourth week
+                     Biweekly = 26,        //!< every second week
+                     Weekly = 52,          //!< once a week
+                     Daily = 365,          //!< once a day
+                     OtherFrequency = 999  //!< some other unknown frequency
+    };
+"""
+
+frequency = ql.Annual
+interestRate = ql.InterestRate(rate, dayCounter, compoundingType, frequency)
+4.958531764309427
+
+ql/cashflows/Cashflows.hpp The NPV is the sum of the cash flows, each discounted according to the given constant interest rate. The result is affected by the choice of the interest-rate compounding and the relative frequency and day counter.
+
+ql.Settings.instance().evaluationDate = ql.Date(15,12,2020)
+print( ql.CashFlows.npv(leg, rate, False) )
+2.4906934531375144
+
+Array
+creates an empty array
+
+ql.Array()
+creates the array and fills it with value
+
+ql.Array(size, value)
+creates the array and fills it according to a0=value,ai=ai−1+increment
+
+ql.Array(size, value, increment)
+Matrix
+creates a null matrix
+
+ql.Matrix()
+creates a matrix with the given dimensions
+
+ql.Matrix(rows, columns)
+creates the matrix and fills it with value
+
+ql.Matrix(rows, columns, value)
+ql.Matrix()
+ql.Matrix(2,2)
+ql.Matrix(2,2,0.5)
+A = ql.Matrix(3,3)
+A[0][0]=0.2
+A[0][1]=8.4
+A[0][2]=1.5
+A[1][0]=0.6
+A[1][1]=1.4
+A[1][2]=7.3
+A[2][0]=0.8
+A[2][1]=4.4
+A[2][2]=3.2
+Observable
+import QuantLib as ql
+
+flag = None
+def raiseFlag():
+    global flag
+    flag = 1
+
+me = ql.SimpleQuote(0.0)
+obs = ql.Observer(raiseFlag)
+obs.registerWith(me)
+me.setValue(3.14)
+if not flag:
+    print("Case 1: Observer was not notified of market element change")
+flag = None
+obs.unregisterWith(me)
+me.setValue(3.14)
+if not flag:
+    print("Case 2: Observer was not notified of market element change")
+Quotes
+SimpleQuote
+ql.SimpleQuote(value)
+s = ql.SimpleQuote(0.01)
+Functions
+
+value
+
+setValue
+
+isValid
+
+s.value()
+s.setValue(0.05)
+s.isValid()
+DerivedQuote
+ql.DerivedQuote(quoteHandle, function)
+d1 = ql.SimpleQuote(0.06)
+d2 = ql.DerivedQuote(ql.QuoteHandle(d1),lambda x: 10*x)
+CompositeQuote
+ql.CompositeQuote(quoteHandle, quoteHandle, function)
+c1 = ql.SimpleQuote(0.02)
+c2 = ql.SimpleQuote(0.03)
+
+def f(x,y):
+    return x+y
+
+c3 = ql.CompositeQuote(ql.QuoteHandle(c1),ql.QuoteHandle(c2), f)
+c3.value()
+
+c4 = ql.CompositeQuote(ql.QuoteHandle(c1),ql.QuoteHandle(c2), lambda x,y:x+y)
+c4.value()
+DeltaVolQuote
+A class for FX-style quotes where delta-maturity pairs are quoted in implied vol
+
+ql.DeltaVolQuote(delta, volQuoteHandle, maturity, deltaType)
+ql.DeltaVolQuote(volQuoteHandle, deltaType, maturity, atmType)
+deltaType = ql.DeltaVolQuote.Fwd    # Also supports: Spot, PaSpot, PaFwd
+atmType = ql.DeltaVolQuote.AtmFwd   # Also supports: AtmSpot, AtmDeltaNeutral, AtmVegaMax, AtmGammaMax, AtmPutCall50
+
+maturity = 1.0
+volAtm, vol25DeltaCall, vol25DeltaPut = 0.08, 0.075, 0.095
+
+atmDeltaQuote = ql.DeltaVolQuote(ql.QuoteHandle(ql.SimpleQuote(volAtm)), deltaType, maturity, atmType)
+vol25DeltaPutQuote = ql.DeltaVolQuote(-0.25, ql.QuoteHandle(ql.SimpleQuote(vol25DeltaPut)), maturity, deltaType)
+vol25DeltaCallQuote = ql.DeltaVolQuote(0.25, ql.QuoteHandle(ql.SimpleQuote(vol25DeltaCall)), maturity, deltaType)
+
+
+
+Bonds
+Bond
+Redemptions and maturity are calculated from the coupon data, if available. Therefore, redemptions must not be included in the passed cash flows.
+
+classql.Bond(settlementDays, calendar, issueDate, coupons)
+start = ql.Date(15,12,2019)
+maturity = ql.Date(15,12,2020)
+schedule = ql.MakeSchedule(start, maturity, ql.Period('6M'))
+
+interest = ql.FixedRateLeg(schedule, ql.Actual360(), [100.], [0.05])
+bond = ql.Bond(0, ql.TARGET(), start, interest)
+.bondYield(dayCounter, compounding, frequency, accuracy=1.0e-8, maxEvaluations=100)
+.bondYield(cleanPrice, dayCounter, compounding, frequency, settlementDate=Date, accuracy=1.0e-8, maxEvaluations=100)
+bond.bondYield(100, ql.Actual360(), ql.Compounded, ql.Annual)
+.dirtyPrice()
+bond.dirtyPrice()
+.dirtyPrice(yield, dayCount, compounding, frequency)
+bond.dirtyPrice(0.05, ql.Actual360(), ql.Compounded, ql.Annual)
+ZeroCouponBond
+ql.ZeroCouponBond(settlementDays, calendar, faceAmount, maturityDate)
+bond = ql.ZeroCouponBond(2, ql.TARGET(), 100, ql.Date(20,6,2020))
+FixedRateBond
+ql.FixedRateBond(settlementDays, calendar, faceAmount, startDate, maturityDate, tenor, coupon, paymentConvention)
+ql.FixedRateBond(settlementDays, faceAmount, schedule, coupon, paymentConvention)
+bond = ql.FixedRateBond(2, ql.TARGET(), 100.0, ql.Date(15,12,2019), ql.Date(15,12,2024), ql.Period('1Y'), [0.05], ql.ActualActual(ql.ActualActual.Bond))
+AmortizingFixedRateBond
+ql.AmortizingFixedRateBond(settlementDays, notionals, schedule, coupons, accrualDayCounter, paymentConvention=Following, issueDate=Date())
+notionals = [100,100,100,50]
+schedule = ql.MakeSchedule(ql.Date(25,1,2018), ql.Date(25,1,2022), ql.Period('1y'))
+bond = ql.AmortizingFixedRateBond(0, notionals, schedule, [0.03], ql.Thirty360(ql.Thirty360.USA))
+FloatingRateBond
+ql.FloatingRateBond(settlementDays, faceAmount, schedule, index, dayCounter, paymentConvention)
+schedule = ql.MakeSchedule(ql.Date(15,6,2020), ql.Date(15,6,2022), ql.Period('6m'))
+index = ql.Euribor6M()
+bond = ql.FloatingRateBond(2,100, schedule, index, ql.Actual360(), spreads=[0.01])
+AmortizingFloatingRateBond
+ql.FloatingRateBond(settlementDays, notionals, schedule, index, dayCounter)
+notional = [100, 50]
+schedule = ql.MakeSchedule(ql.Date(15,6,2020), ql.Date(15,6,2022), ql.Period('1Y'))
+index = ql.Euribor6M()
+bond = ql.AmortizingFloatingRateBond(2, notional, schedule, index, ql.ActualActual(ql.ActualActual.Bond))
+CMS Rate Bond
+ql.CmsRateBond(settlementDays, faceAmount, schedule, index, dayCounter, paymentConvention, fixingDays, gearings, spreads, caps, floors)
+schedule = ql.MakeSchedule(ql.Date(15,6,2020), ql.Date(15,6,2022), ql.Period('1Y'))
+index = ql.EuriborSwapIsdaFixA(ql.Period('10y'))
+bond = ql.CmsRateBond(2, 100, schedule, index, ql.Actual360(), ql.ModifiedFollowing, fixingDays=2, gearings=[1], spreads=[0], caps=[], floors=[])
+Callable Bond
+ql.CallableFixedRateBond(settlementDays, faceAmount, schedule, coupons, accrualDayCounter, paymentConvention, redemption, issueDate, putCallSchedule)
+schedule = ql.MakeSchedule(ql.Date(15,6,2020), ql.Date(15,6,2022), ql.Period('1Y'))
+putCallSchedule = ql.CallabilitySchedule()
+
+my_price  = ql.BondPrice(100, ql.BondPrice.Clean)
+
+putCallSchedule.append(
+    ql.Callability(my_price, ql.Callability.Call, ql.Date(15,6,2021))
+)
+
+bond = ql.CallableFixedRateBond(2, 100, schedule, [0.01], ql.Actual360(), ql.ModifiedFollowing, 100, ql.Date(15,6,2020), putCallSchedule)
+Convertible Bond
+BondFunctions
+bond = ql.FixedRateBond(
+    2, ql.TARGET(), 100.0,
+    ql.Date(15,12,2019), ql.Date(15,12,2024), ql.Period('1Y'),
+    [0.05], ql.ActualActual(ql.ActualActual.Bond))
+Date Inspectors
+
+ql.BondFunctions.startDate(bond)
+ql.BondFunctions.maturityDate(bond)
+ql.BondFunctions.isTradable(bond)
+Cashflow Inspectors
+
+ql.BondFunctions.previousCashFlowDate(bond)
+ql.BondFunctions.previousCashFlowDate(bond, ql.Date(15,12,2020))
+ql.BondFunctions.previousCashFlowAmount(bond)
+ql.BondFunctions.previousCashFlowAmount(bond, ql.Date(15,12,2020))
+ql.BondFunctions.nextCashFlowDate(bond)
+ql.BondFunctions.nextCashFlowDate(bond, ql.Date(15,12,2020))
+ql.BondFunctions.nextCashFlowAmount(bond)
+ql.BondFunctions.nextCashFlowAmount(bond, ql.Date(15,12,2020))
+Coupon Inspectors
+
+ql.BondFunctions.previousCouponRate(bond)
+ql.BondFunctions.nextCouponRate(bond)
+ql.BondFunctions.accrualStartDate(bond)
+ql.BondFunctions.accrualEndDate(bond)
+ql.BondFunctions.accrualPeriod(bond)
+ql.BondFunctions.accrualDays(bond)
+ql.BondFunctions.accruedPeriod(bond)
+ql.BondFunctions.accruedDays(bond)
+ql.BondFunctions.accruedAmount(bond)
+YieldTermStructure
+
+crv = ql.FlatForward(2, ql.TARGET(), 0.04, ql.Actual360())
+ql.BondFunctions.cleanPrice(bond, crv)
+ql.BondFunctions.bps(bond, crv)
+ql.BondFunctions.atmRate(bond, crv)
+Yield (a.k.a. Internal Rate of Return, i.e. IRR) functions
+
+rate = ql.InterestRate(0.05, ql.Actual360(), ql.Compounded, ql.Annual)
+ql.BondFunctions.cleanPrice(bond, rate)
+ql.BondFunctions.bps(bond, rate)
+ql.BondFunctions.duration(bond, rate)
+ql.BondFunctions.convexity(bond, rate)
+ql.BondFunctions.basisPointValue(bond, rate)
+ql.BondFunctions.yieldValueBasisPoint(bond, rate)
+Z-spread functions
+
+crv = ql.FlatForward(2, ql.TARGET(), 0.04, ql.Actual360())
+ql.BondFunctions.zSpread(bond, 101, crv, ql.Actual360(), ql.Compounded, ql.Annual)
+
+
+Indexes
+Interest Rate
+IborIndex
+ql.IborIndex(familyName, tenor, settlementDays, currency, fixingCalendar, convention, endOfMonth, dayCounter, =Handleql.YieldTermStructure())
+ql.IborIndex('MyIndex', ql.Period('6m'), 2, ql.EURCurrency(), ql.TARGET(), ql.ModifiedFollowing, True, ql.Actual360())
+ql.Libor('MyIndex', ql.Period('6M'), 2, ql.USDCurrency(), ql.TARGET(), ql.Actual360())
+ql.Euribor(ql.Period('6M'))
+ql.USDLibor(ql.Period('6M'))
+ql.Euribor6M()
+Derived Classes:
+
+ql.Euribor()
+
+Constructors for derived classes:
+
+ql.Euribor(period)
+ql.Euribor(period, yts)
+OvernightIndex
+ql.OvernightIndex(name, fixingDays, currency, calendar, dayCounter, =ql.YieldTermStructureHandle())
+name = 'CNYRepo7D'
+fixingDays = 1
+currency = ql.CNYCurrency()
+calendar = ql.China()
+dayCounter = ql.Actual365Fixed()
+overnight_index = ql.OvernightIndex(name, fixingDays, currency, calendar, dayCounter)
+SwapIndex
+ql.SwapIndex(familyName, tenor, settlementDays, currency, fixingCalendar, fixedLegTenor, convention, dayCounter, index, =Handleql.YieldTermStructure())
+Derived Classes:
+
+ql.ChfLiborSwapIsdaFix
+
+ql.EuriborSwapIsdaFixA
+
+ql.EuriborSwapIsdaFixB
+
+ql.EuriborSwapIfrFix
+
+ql.EurLiborSwapIfrFix
+
+ql.EurLiborSwapIsdaFixA
+
+ql.EurLiborSwapIsdaFixB
+
+ql.GbpLiborSwapIsdaFix
+
+ql.JpyLiborSwapIsdaFixAm
+
+ql.JpyLiborSwapIsdaFixPm
+
+ql.OvernightIndexedSwapIndex
+
+ql.UsdLiborSwapIsdaFixAm
+
+ql.UsdLiborSwapIsdaFixPm
+
+Constructors for derived classes:
+
+ql.EuriborSwapIsdaFixA(period)
+ql.EuriborSwapIsdaFixA(period, yts)
+ql.EuriborSwapIsdaFixA(period, forward_yts, discounting_yts)
+SwapSpreadIndex
+SwapSpreadIndex(familyName, swapIndex1, swapIndex2, gearing1=1.0, gearing2=-1.0)
+Inflation
+Zero Inflation
+ql.{InflationIndex}(interpolated=bool)
+ql.{InflationIndex}(bool, ZeroInflationTermStructure)
+ql.UKRPI
+
+ql.USCPI
+
+ql.EUHICP
+
+ql.EUHICPXT
+
+YoY inflation
+ql.YYEUHICP
+
+ql.YYEUHICPXT
+
+ql.YYFRHICP
+
+ql.YYUKRPI
+
+ql.YYUSCPI
+
+ql.YYZACPI
+
+Fixings
+fixingDates = [cf.fixingDate() for cf in map(ql.as_floating_rate_coupon, loan)]
+euribor3m.clearFixings()
+
+euribor3m.addFixing(ql.Date(17, 7, 2018), -0.3)
+euribor3m.addFixings([ql.Date(12, 7, 2018), ql.Date(13, 7, 2018)], [-0.3, -0.3])
+[dt for dt in index.timeSeries().dates()]
+[dt for dt in index.timeSeries().values()]
+To get the fixing dates form an instrument:
+
+swap3 = ql.MakeVanillaSwap(ql.Period('3y'), ql.Euribor6M(), 0.01, ql.Period("-2D"))
+fixingDates = [cf.fixingDate() for cf in map(ql.as_floating_rate_coupon, swap3.floatingLeg())]
+Indexes have calendars and will not accept invalid fixing dates:
+
+index.isValidFixingDate(ql.Date(25,12,2019))
+c = index.fixingCalendar()
+c.name()
+IndexManager
+ql.IndexManager.instance().histories()
+
+for dt, value in zip(im.getHistory('EURIBOR6M ACTUAL/360').dates(),im.getHistory('EURIBOR6M ACTUAL/360').values()):
+    print(dt, value)
+
+
+IndexManager.instance().clearHistory(index.name())
+
+
+Pricing Engines
+Bond Pricing Engines
+DiscountingBondEngine
+ql.DiscountingBondEngine(discountCurve)
+crv = ql.FlatForward(ql.Date().todaysDate(),0.04875825,ql.Actual365Fixed())
+yts = ql.YieldTermStructureHandle(crv)
+engine = ql.DiscountingBondEngine(yts)
+BlackCallableFixedRateBondEngine
+ql.BlackCallableFixedRateBondEngine(fwdYieldVol, discountCurve)
+crv = ql.FlatForward(ql.Date().todaysDate(),0.04875825,ql.Actual365Fixed())
+yts = ql.YieldTermStructureHandle(crv)
+vol = ql.QuoteHandle(ql.SimpleQuote(0.55))
+engine = ql.BlackCallableFixedRateBondEngine(vol, yts)
+TreeCallableFixedRateEngine
+ql.TreeCallableFixedRateBondEngine(shortRateModel, size, discountCurve)
+crv = ql.FlatForward(ql.Date().todaysDate(),0.04875825,ql.Actual365Fixed())
+yts = ql.YieldTermStructureHandle(crv)
+model = ql.Vasicek()
+engine = ql.TreeCallableFixedRateBondEngine(model, 10, yts)
+ql.TreeCallableFixedRateBondEngine(shortRateModel, size)
+model = ql.Vasicek()
+engine = ql.TreeCallableFixedRateBondEngine(model, 10)
+ql.TreeCallableFixedRateBondEngine(shortRateModel, TimeGrid, discountCurve)
+crv = ql.FlatForward(ql.Date().todaysDate(),0.04875825,ql.Actual365Fixed())
+yts = ql.YieldTermStructureHandle(crv)
+model = ql.Vasicek()
+grid = ql.TimeGrid(5,10)
+
+engine = ql.TreeCallableFixedRateBondEngine(model, grid, yts)
+ql.TreeCallableFixedRateBondEngine(shortRateModel, TimeGrid)
+crv = ql.FlatForward(ql.Date().todaysDate(),0.04875825,ql.Actual365Fixed())
+yts = ql.YieldTermStructureHandle(crv)
+model = ql.Vasicek()
+grid = ql.TimeGrid(5,10)
+
+engine = ql.TreeCallableFixedRateBondEngine(model, grid)
+Cap Pricing Engines
+BlackCapFloorEngine
+ql.BlackCapFloorEngine(yieldTermStructure, quoteHandle)
+vols = ql.QuoteHandle(ql.SimpleQuote(0.547295))
+engine = ql.BlackCapFloorEngine(yts, vols)
+cap.setPricingEngine(engine)
+ql.BlackCapFloorEngine(yieldTermStructure, OptionletVolatilityStructure)
+BachelierCapFloorEngine
+ql.BachelierCapFloorEngine(yieldTermStructure, quoteHandle)
+vols = ql.QuoteHandle(ql.SimpleQuote(0.00547295))
+engine = ql.BachelierCapFloorEngine(yts, vols)
+ql.BachelierCapFloorEngine(yieldTermStructure, OptionletVolatilityStructure)
+AnalyticCapFloorEngine
+ql.AnalyticCapFloorEngine(OneFactorAffineModel, YieldTermStructure)
+ql.AnalyticCapFloorEngine(OneFactorAffineModel)
+OneFactorAffineModel
+
+HullWhite : (termStructure, a=0.1, sigma=0.01)
+
+Vasicek : (r0=0.05, a=0.1, b=0.05, sigma=0.01, lambda=0.0)
+
+CoxIngersollRoss [NOT IMPLEMENTED]
+
+GeneralizedHullWhite [NOT IMPLEMENTED]
+
+yts = ql.YieldTermStructureHandle(ql.FlatForward(ql.Date().todaysDate(), 0.0121, ql.Actual360()))
+models = [
+    ql.HullWhite (yts),
+    ql.Vasicek(r0=0.008),
+]
+
+for model in models:
+    analyticEngine = ql.AnalyticCapFloorEngine(model, yts)
+    cap.setPricingEngine(analyticEngine)
+    print(f"Cap npv is: {cap.NPV():,.2f}")
+TreeCapFloorEngine
+ql.TreeCapFloorEngine(ShortRateModel, Size, YieldTermStructure)
+ql.TreeCapFloorEngine(ShortRateModel, Size)
+ql.TreeCapFloorEngine(ShortRateModel, Size, TimeGrid, YieldTermStructure)
+ql.TreeCapFloorEngine(ShortRateModel, Size, TimeGrid)
+Models
+
+HullWhite : (YieldTermStructure, a=0.1, sigma=0.01)
+
+BlackKarasinski : (YieldTermStructure, a=0.1, sigma=0.1)
+
+Vasicek : (r0=0.05, a=0.1, b=0.05, sigma=0.01, lambda=0.0)
+
+G2 : (termStructure, a=0.1, sigma=0.01, b=0.1, eta=0.01, rho=-0.75)
+
+GeneralizedHullWhite [NOT IMPLEMENTED]
+
+CoxIngersollRoss [NOT IMPLEMENTED]
+
+ExtendedCoxIngersollRoss [NOT IMPLEMENTED]
+
+models = [
+    ql.HullWhite (yts),
+    ql.BlackKarasinski(yts),
+    ql.Vasicek(0.0065560),
+    ql.G2(yts)
+]
+
+for model in models:
+    treeEngine = ql.TreeCapFloorEngine(model, 60, yts)
+    cap.setPricingEngine(treeEngine)
+    print(f"Cap npv is: {cap.NPV():,.2f}")
+Swap Pricing Engines
+DiscountingSwapEngine
+ql.DiscountingSwapEngine(YieldTermStructure)
+yts = ql.YieldTermStructureHandle(ql.FlatForward(2, ql.TARGET(), 0.5, ql.Actual360()))
+engine = ql.DiscountingSwapEngine(yts)
+Swaption Pricing Engines
+BlackSwaptionEngine
+ql.BlackSwaptionEngine(yts, quote)
+ql.BlackSwaptionEngine(yts, swaptionVolatilityStructure)
+ql.BlackSwaptionEngine(yts, quote, dayCounter)
+ql.BlackSwaptionEngine(yts, quote, dayCounter, displacement)
+blackEngine = ql.BlackSwaptionEngine(yts, ql.QuoteHandle(ql.SimpleQuote(0.55)))
+blackEngine = ql.BlackSwaptionEngine(yts, ql.QuoteHandle(ql.SimpleQuote(0.55)), ql.ActualActual())
+blackEngine = ql.BlackSwaptionEngine(yts, ql.QuoteHandle(ql.SimpleQuote(0.55)), ql.ActualActual(), 0.01)
+BachelierSwaptionEngine
+ql.BachelierSwaptionEngine(yts, quote)
+ql.BachelierSwaptionEngine(yts, swaptionVolatilityStructure)
+ql.BachelierSwaptionEngine(yts, quote, dayCounter)
+bachelierEngine = ql.BachelierSwaptionEngine(yts, ql.QuoteHandle(ql.SimpleQuote(0.0055)))
+swaption.setPricingEngine(bachelierEngine)
+swaption.NPV()
+FdHullWhiteSwaptionEngine
+ql.FdHullWhiteSwaptionEngine(model, range, interval)
+model = ql.HullWhite(yts)
+engine = ql.FdHullWhiteSwaptionEngine(model)
+swaption.setPricingEngine(engine)
+swaption.NPV()
+FdG2SwaptionEngine
+ql.FdG2SwaptionEngine(model)
+model = ql.G2(yts)
+engine = ql.FdG2SwaptionEngine(model)
+swaption.setPricingEngine(engine)
+swaption.NPV()
+G2SwaptionEngine
+ql.G2SwaptionEngine(model, range, interval)
+model = ql.G2(yts)
+g2Engine = ql.G2SwaptionEngine(model, 4, 4)
+swaption.setPricingEngine(g2Engine)
+swaption.NPV()
+JamshidianSwaptionEngine
+ql.JamshidianSwaptionEngine(OneFactorAffineModel)
+ql.JamshidianSwaptionEngine(OneFactorAffineModel, YieldTermStructure)
+model = ql.HullWhite(yts)
+engine = ql.JamshidianSwaptionEngine(model, yts)
+swaption.setPricingEngine(g2Engine)
+swaption.NPV()
+TreeSwaptionEngine
+ql.TreeSwaptionEngine(ShortRateModel, Size, YieldTermStructure)
+ql.TreeSwaptionEngine(ShortRateModel, Size)
+ql.TreeSwaptionEngine(ShortRateModel, TimeGrid, YieldTermStructure)
+ql.TreeSwaptionEngine(ShortRateModel, TimeGrid)
+model = ql.HullWhite(yts)
+engine = ql.TreeSwaptionEngine(model, 10)
+swaption.setPricingEngine(g2Engine)
+swaption.NPV()
+Credit Pricing Engines
+IsdaCdsEngine
+ql.IsdaCdsEngine(defaultProbability, recoveryRate, yieldTermStructure, includeSettlementDateFlows=None, numericalFix=ql.IsdaCdsEngine.Taylor, AccrualBias accrualBias=ql.IsdaCdsEngine.HalfDayBias, forwardsInCouponPeriod=ql.IsdaCdsEngine.Piecewise)
+today = ql.Date().todaysDate()
+defaultProbability = ql.DefaultProbabilityTermStructureHandle(
+    ql.FlatHazardRate(today, ql.QuoteHandle(ql.SimpleQuote(0.01)), ql.Actual360())
+)
+yieldTermStructure = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.05, ql.Actual360()))
+
+recoveryRate = 0.4
+engine = ql.IsdaCdsEngine(defaultProbability, recoveryRate, yieldTermStructure)
+MidPointCdsEngine
+ql.MidPointCdsEngine(defaultProbability, recoveryRate, yieldTermStructure)
+today = ql.Date().todaysDate()
+defaultProbability = ql.DefaultProbabilityTermStructureHandle(
+    ql.FlatHazardRate(today, ql.QuoteHandle(ql.SimpleQuote(0.01)), ql.Actual360())
+)
+yieldTermStructure = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.05, ql.Actual360()))
+
+recoveryRate = 0.4
+engine = ql.MidPointCdsEngine(defaultProbability, recoveryRate, yieldTermStructure)
+IntegralCdsEngine
+ql.IntegralCdsEngine(integrationStep, probability, recoveryRate, discountCurve, includeSettlementDateFlows=False)
+today = ql.Date().todaysDate()
+defaultProbability = ql.DefaultProbabilityTermStructureHandle(
+    ql.FlatHazardRate(today, ql.QuoteHandle(ql.SimpleQuote(0.01)), ql.Actual360())
+)
+yieldTermStructure = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.05, ql.Actual360()))
+
+integralStep = ql.Period('1d')
+engine = ql.IntegralCdsEngine(integralStep, defaultProbability, 0.4, yieldTermStructure, includeSettlementDateFlows=False)
+BlackCdsOptionEngine
+ql.BlackCdsOptionEngine(defaultProbability, recoveryRate, yieldTermStructure, vol)
+today = ql.Date().todaysDate()
+defaultProbability = ql.DefaultProbabilityTermStructureHandle(
+    ql.FlatHazardRate(today, ql.QuoteHandle(ql.SimpleQuote(0.01)), ql.Actual360())
+)
+yieldTermStructure = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.05, ql.Actual360()))
+
+
+vol = ql.QuoteHandle(ql.SimpleQuote(0.2))
+engine = ql.BlackCdsOptionEngine(defaultProbability, 0.4, yieldTermStructure, vol)
+Option Pricing Engines
+Vanilla Options
+AnalyticEuropeanEngine
+ql.AnalyticEuropeanEngine(GeneralizedBlackScholesProcess)
+today = ql.Date().todaysDate()
+riskFreeTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.05, ql.Actual365Fixed()))
+dividendTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.01, ql.Actual365Fixed()))
+volatility = ql.BlackVolTermStructureHandle(ql.BlackConstantVol(today, ql.NullCalendar(), 0.1, ql.Actual365Fixed()))
+initialValue = ql.QuoteHandle(ql.SimpleQuote(100))
+process = ql.BlackScholesMertonProcess(initialValue, dividendTS, riskFreeTS, volatility)
+
+engine = ql.AnalyticEuropeanEngine(process)
+MCEuropeanEngine
+ql.MCEuropeanEngine(GeneralizedBlackScholesProcess, traits, timeSteps=None, timeStepsPerYear=None, brownianBridge=False, antitheticVariate=False, requiredSamples=None, requiredTolerance=None, maxSamples=None, seed=0)
+today = ql.Date().todaysDate()
+riskFreeTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.05, ql.Actual365Fixed()))
+dividendTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.01, ql.Actual365Fixed()))
+volatility = ql.BlackVolTermStructureHandle(ql.BlackConstantVol(today, ql.NullCalendar(), 0.1, ql.Actual365Fixed()))
+initialValue = ql.QuoteHandle(ql.SimpleQuote(100))
+process = ql.BlackScholesMertonProcess(initialValue, dividendTS, riskFreeTS, volatility)
+
+steps = 2
+rng = "pseudorandom" # could use "lowdiscrepancy"
+numPaths = 100000
+
+engine = ql.MCEuropeanEngine(process, rng, steps, requiredSamples=numPaths)
+FdBlackScholesVanillaEngine
+Note that this engine is capable of pricing both European and American payoffs!
+
+ql.FdBlackScholesVanillaEngine(GeneralizedBlackScholesProcess, tGrid, xGrid, dampingSteps=0, schemeDesc=ql.FdmSchemeDesc.Douglas(), localVol=False, illegalLocalVolOverwrite=None)
+today = ql.Date().todaysDate()
+riskFreeTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.05, ql.Actual365Fixed()))
+dividendTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.01, ql.Actual365Fixed()))
+volatility = ql.BlackVolTermStructureHandle(ql.BlackConstantVol(today, ql.NullCalendar(), 0.1, ql.Actual365Fixed()))
+initialValue = ql.QuoteHandle(ql.SimpleQuote(100))
+process = ql.BlackScholesMertonProcess(initialValue, dividendTS, riskFreeTS, volatility)
+
+tGrid, xGrid = 2000, 200
+engine = ql.FdBlackScholesVanillaEngine(process, tGrid, xGrid)
+MCAmericanEngine
+ql.MCAmericanEngine(GeneralizedBlackScholesProcess, traits, timeSteps=None, timeStepsPerYear=None, antitheticVariate=False, controlVariate=False, requiredSamples=None, requiredTolerance=None, maxSamples=None, seed=0, polynomOrder=2, polynomType=0, nCalibrationSamples=2048, antitheticVariateCalibration=None, seedCalibration=None)
+today = ql.Date().todaysDate()
+riskFreeTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.05, ql.Actual365Fixed()))
+dividendTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.01, ql.Actual365Fixed()))
+volatility = ql.BlackVolTermStructureHandle(ql.BlackConstantVol(today, ql.NullCalendar(), 0.1, ql.Actual365Fixed()))
+initialValue = ql.QuoteHandle(ql.SimpleQuote(100))
+process = ql.BlackScholesMertonProcess(initialValue, dividendTS, riskFreeTS, volatility)
+
+steps = 200
+rng = "pseudorandom" # could use "lowdiscrepancy"
+numPaths = 100000
+
+engine = ql.MCAmericanEngine(process, rng, steps, requiredSamples=numPaths)
+MCDigitalEngine
+This engine prices american (ie. knock-in) cash-or-nothing payoffs only
+
+ql.MCDigitalEngine(GeneralizedBlackScholesProcess, traits, timeSteps=None, timeStepsPerYear=None, brownianBridge=False, antitheticVariate=False, requiredSamples=None, requiredTolerance=None, maxSamples=None, seed=0)
+today = ql.Date().todaysDate()
+riskFreeTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.05, ql.Actual365Fixed()))
+dividendTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.01, ql.Actual365Fixed()))
+volatility = ql.BlackVolTermStructureHandle(ql.BlackConstantVol(today, ql.NullCalendar(), 0.1, ql.Actual365Fixed()))
+initialValue = ql.QuoteHandle(ql.SimpleQuote(100))
+process = ql.BlackScholesMertonProcess(initialValue, dividendTS, riskFreeTS, volatility)
+
+steps = 200
+rng = "pseudorandom" # could use "lowdiscrepancy"
+numPaths = 100000
+
+engine = ql.MCDigitalEngine(process, rng, steps, requiredSamples=numPaths)
+AnalyticHestonEngine
+ql.AnalyticHestonEngine(HestonModel)
+today = ql.Date().todaysDate()
+riskFreeTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.05, ql.Actual365Fixed()))
+dividendTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.01, ql.Actual365Fixed()))
+
+initialValue = ql.QuoteHandle(ql.SimpleQuote(100))
+v0 = 0.005
+kappa = 0.8
+theta = 0.008
+rho = 0.2
+sigma = 0.1
+
+hestonProcess = ql.HestonProcess(riskFreeTS, dividendTS, initialValue, v0, kappa, theta, sigma, rho)
+hestonModel = ql.HestonModel(hestonProcess)
+
+engine = ql.AnalyticHestonEngine(hestonModel)
+MCEuropeanHestonEngine
+ql.MCEuropeanHestonEngine(HestonProcess, traits, timeSteps=None, timeStepsPerYear=None, antitheticVariate=False, requiredSamples=None, requiredTolerance=None, maxSamples=None, seed=0)
+today = ql.Date().todaysDate()
+riskFreeTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.05, ql.Actual365Fixed()))
+dividendTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.01, ql.Actual365Fixed()))
+
+initialValue = ql.QuoteHandle(ql.SimpleQuote(100))
+v0 = 0.005
+kappa = 0.8
+theta = 0.008
+rho = 0.2
+sigma = 0.1
+
+hestonProcess = ql.HestonProcess(riskFreeTS, dividendTS, initialValue, v0, kappa, theta, sigma, rho)
+
+steps = 2
+rng = "pseudorandom" # could use "lowdiscrepancy"
+numPaths = 100000
+
+engine = ql.MCEuropeanHestonEngine(hestonProcess, rng, steps, requiredSamples=numPaths)
+FdHestonVanillaEngine
+If a leverage function (and optional mixing factor) is passed in to this function, it prices using the Heston Stochastic Local Vol model
+
+ql.FdHestonVanillaEngine(HestonModel, tGrid=100, xGrid=100, vGrid=50, dampingSteps=0, FdmSchemeDesc=ql.FdmSchemeDesc.Hundsdorfer(), leverageFct=LocalVolTermStructure(), mixingFactor=1.0)
+today = ql.Date().todaysDate()
+riskFreeTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.05, ql.Actual365Fixed()))
+dividendTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.01, ql.Actual365Fixed()))
+
+initialValue = ql.QuoteHandle(ql.SimpleQuote(100))
+v0 = 0.005
+kappa = 0.8
+theta = 0.008
+rho = 0.2
+sigma = 0.1
+
+hestonProcess = ql.HestonProcess(riskFreeTS, dividendTS, initialValue, v0, kappa, theta, sigma, rho)
+hestonModel = ql.HestonModel(hestonProcess)
+
+tGrid, xGrid, vGrid = 100, 100, 50
+dampingSteps = 0
+fdScheme = ql.FdmSchemeDesc.ModifiedCraigSneyd()
+
+engine = ql.FdHestonVanillaEngine(hestonModel, tGrid, xGrid, vGrid, dampingSteps, fdScheme)
+AnalyticPTDHestonEngine
+ql.AnalyticPTDHestonEngine(PiecewiseTimeDependentHestonModel)
+today = ql.Date().todaysDate()
+riskFreeTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.05, ql.Actual365Fixed()))
+dividendTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.01, ql.Actual365Fixed()))
+
+initialValue = ql.QuoteHandle(ql.SimpleQuote(100))
+
+times = [1.0, 2.0, 3.0]
+grid = ql.TimeGrid(times)
+
+v0 = 0.005
+theta = [0.010, 0.015, 0.02]
+kappa = [0.600, 0.500, 0.400]
+sigma = [0.400, 0.350, 0.300]
+rho = [-0.15, -0.10, -0.00]
+
+kappaTS = ql.PiecewiseConstantParameter(times[:-1], ql.PositiveConstraint())
+thetaTS = ql.PiecewiseConstantParameter(times[:-1], ql.PositiveConstraint())
+rhoTS = ql.PiecewiseConstantParameter(times[:-1], ql.BoundaryConstraint(-1.0, 1.0))
+sigmaTS = ql.PiecewiseConstantParameter(times[:-1], ql.PositiveConstraint())
+
+for i, time in enumerate(times):
+    kappaTS.setParam(i, kappa[i])
+    thetaTS.setParam(i, theta[i])
+    rhoTS.setParam(i, rho[i])
+    sigmaTS.setParam(i, sigma[i])
+
+hestonModelPTD = ql.PiecewiseTimeDependentHestonModel(riskFreeTS, dividendTS, initialValue, v0, thetaTS, kappaTS, sigmaTS, rhoTS, grid)
+engine = ql.AnalyticPTDHestonEngine(hestonModelPTD)
+Asian Options
+AnalyticDiscreteGeometricAveragePriceAsianEngine
+ql.AnalyticDiscreteGeometricAveragePriceAsianEngine(GeneralizedBlackScholesProcess)
+today = ql.Date().todaysDate()
+riskFreeTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.05, ql.Actual365Fixed()))
+dividendTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.01, ql.Actual365Fixed()))
+volatility = ql.BlackVolTermStructureHandle(ql.BlackConstantVol(today, ql.NullCalendar(), 0.1, ql.Actual365Fixed()))
+initialValue = ql.QuoteHandle(ql.SimpleQuote(100))
+process = ql.BlackScholesMertonProcess(initialValue, dividendTS, riskFreeTS, volatility)
+
+engine = ql.AnalyticDiscreteGeometricAveragePriceAsianEngine(process)
+AnalyticContinuousGeometricAveragePriceAsianEngine
+ql.AnalyticContinuousGeometricAveragePriceAsianEngine(GeneralizedBlackScholesProcess)
+today = ql.Date().todaysDate()
+riskFreeTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.05, ql.Actual365Fixed()))
+dividendTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.01, ql.Actual365Fixed()))
+volatility = ql.BlackVolTermStructureHandle(ql.BlackConstantVol(today, ql.NullCalendar(), 0.1, ql.Actual365Fixed()))
+initialValue = ql.QuoteHandle(ql.SimpleQuote(100))
+process = ql.BlackScholesMertonProcess(initialValue, dividendTS, riskFreeTS, volatility)
+
+engine = ql.AnalyticContinuousGeometricAveragePriceAsianEngine(process)
+MCDiscreteGeometricAPEngine
+ql.MCDiscreteGeometricAPEngine(GeneralizedBlackScholesProcess, traits, brownianBridge=False, antitheticVariate=False, requiredSamples=None, requiredTolerance=None, maxSamples=None, seed=0)
+today = ql.Date().todaysDate()
+riskFreeTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.05, ql.Actual365Fixed()))
+dividendTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.01, ql.Actual365Fixed()))
+volatility = ql.BlackVolTermStructureHandle(ql.BlackConstantVol(today, ql.NullCalendar(), 0.1, ql.Actual365Fixed()))
+initialValue = ql.QuoteHandle(ql.SimpleQuote(100))
+process = ql.BlackScholesMertonProcess(initialValue, dividendTS, riskFreeTS, volatility)
+
+rng = "pseudorandom" # could use "lowdiscrepancy"
+numPaths = 100000
+
+engine = ql.MCDiscreteGeometricAPEngine(process, rng, requiredSamples=numPaths)
+MCDiscreteArithmeticAPEngine
+ql.MCDiscreteArithmeticAPEngine(GeneralizedBlackScholesProcess, traits, brownianBridge=False, antitheticVariate=False, controlVariate=False, requiredSamples=None, requiredTolerance=None, maxSamples=None, seed=0)
+today = ql.Date().todaysDate()
+riskFreeTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.05, ql.Actual365Fixed()))
+dividendTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.01, ql.Actual365Fixed()))
+volatility = ql.BlackVolTermStructureHandle(ql.BlackConstantVol(today, ql.NullCalendar(), 0.1, ql.Actual365Fixed()))
+initialValue = ql.QuoteHandle(ql.SimpleQuote(100))
+process = ql.BlackScholesMertonProcess(initialValue, dividendTS, riskFreeTS, volatility)
+
+rng = "pseudorandom" # could use "lowdiscrepancy"
+numPaths = 100000
+
+engine = ql.MCDiscreteArithmeticAPEngine(process, rng, requiredSamples=numPaths)
+FdBlackScholesAsianEngine
+Note that this engine will throw an error if asked to price Geometric averaging options. It only prices Discrete Arithmetic Asians.
+
+ql.FdBlackScholesAsianEngine(GeneralizedBlackScholesProcess, tGrid=100, xGrid=100, aGrid=50)
+today = ql.Date().todaysDate()
+riskFreeTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.05, ql.Actual365Fixed()))
+dividendTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.01, ql.Actual365Fixed()))
+volatility = ql.BlackVolTermStructureHandle(ql.BlackConstantVol(today, ql.NullCalendar(), 0.1, ql.Actual365Fixed()))
+initialValue = ql.QuoteHandle(ql.SimpleQuote(100))
+process = ql.BlackScholesMertonProcess(initialValue, dividendTS, riskFreeTS, volatility)
+
+tGrid, xGrid, aGrid = 100, 100, 50
+engine = ql.FdBlackScholesAsianEngine(process, tGrid=tGrid, xGrid=xGrid, aGrid=aGrid)
+AnalyticDiscreteGeometricAveragePriceAsianHestonEngine
+ql.AnalyticDiscreteGeometricAveragePriceAsianHestonEngine(HestonProcess)
+today = ql.Date().todaysDate()
+riskFreeTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.05, ql.Actual365Fixed()))
+dividendTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.01, ql.Actual365Fixed()))
+initialValue = ql.QuoteHandle(ql.SimpleQuote(100))
+
+v0, kappa, theta, rho, sigma = 0.005, 0.8, 0.008, 0.2, 0.1
+hestonProcess = ql.HestonProcess(riskFreeTS, dividendTS, initialValue, v0, kappa, theta, sigma, rho)
+
+engine = ql.AnalyticDiscreteGeometricAveragePriceAsianHestonEngine(hestonProcess)
+AnalyticContinuousGeometricAveragePriceAsianHestonEngine
+ql.AnalyticContinuousGeometricAveragePriceAsianHestonEngine(HestonProcess)
+today = ql.Date().todaysDate()
+riskFreeTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.05, ql.Actual365Fixed()))
+dividendTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.01, ql.Actual365Fixed()))
+initialValue = ql.QuoteHandle(ql.SimpleQuote(100))
+
+v0, kappa, theta, rho, sigma = 0.005, 0.8, 0.008, 0.2, 0.1
+hestonProcess = ql.HestonProcess(riskFreeTS, dividendTS, initialValue, v0, kappa, theta, sigma, rho)
+
+engine = ql.AnalyticContinuousGeometricAveragePriceAsianHestonEngine(hestonProcess)
+MCDiscreteGeometricAPHestonEngine
+ql.MCDiscreteGeometricAPHestonEngine(HestonProcess, traits, antitheticVariate=False, requiredSamples=None, requiredTolerance=None, maxSamples=None, seed=0, timeSteps=None, timeStepsPerYear=None)
+today = ql.Date().todaysDate()
+riskFreeTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.05, ql.Actual365Fixed()))
+dividendTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.01, ql.Actual365Fixed()))
+initialValue = ql.QuoteHandle(ql.SimpleQuote(100))
+
+v0, kappa, theta, rho, sigma = 0.005, 0.8, 0.008, 0.2, 0.1
+hestonProcess = ql.HestonProcess(riskFreeTS, dividendTS, initialValue, v0, kappa, theta, sigma, rho)
+
+rng = "pseudorandom" # could use "lowdiscrepancy"
+numPaths = 100000
+
+engine = ql.MCDiscreteGeometricAPHestonEngine(hestonProcess, rng, requiredSamples=numPaths)
+MCDiscreteArithmeticAPHestonEngine
+ql.MCDiscreteArithmeticAPHestonEngine(HestonProcess, traits, antitheticVariate=False, requiredSamples=None, requiredTolerance=None, maxSamples=None, seed=0, timeSteps=None, timeStepsPerYear=None, controlVariate=False)
+today = ql.Date().todaysDate()
+riskFreeTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.05, ql.Actual365Fixed()))
+dividendTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.01, ql.Actual365Fixed()))
+initialValue = ql.QuoteHandle(ql.SimpleQuote(100))
+
+v0, kappa, theta, rho, sigma = 0.005, 0.8, 0.008, 0.2, 0.1
+hestonProcess = ql.HestonProcess(riskFreeTS, dividendTS, initialValue, v0, kappa, theta, sigma, rho)
+
+rng = "pseudorandom" # could use "lowdiscrepancy"
+numPaths = 100000
+
+engine = ql.MCDiscreteArithmeticAPHestonEngine(hestonProcess, rng, requiredSamples=numPaths)
+TurnbullWakemanAsianEngine
+ql.TurnbullWakemanAsianEngine(GeneralizedBlackScholesProcess)
+today = ql.Date().todaysDate()
+riskFreeTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.05, ql.Actual365Fixed()))
+dividendTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.01, ql.Actual365Fixed()))
+volatility = ql.BlackVolTermStructureHandle(ql.BlackConstantVol(today, ql.NullCalendar(), 0.1, ql.Actual365Fixed()))
+initialValue = ql.QuoteHandle(ql.SimpleQuote(100))
+process = ql.BlackScholesMertonProcess(initialValue, dividendTS, riskFreeTS, volatility)
+
+engine = ql.TurnbullWakemanAsianEngine(process)
+Barrier Options
+BinomialBarrierEngine
+ql.BinomialBarrierEngine(process, type, steps)
+today = ql.Date().todaysDate()
+
+spotHandle = ql.QuoteHandle(ql.SimpleQuote(100))
+flatRateTs = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.05, ql.Actual365Fixed()))
+flatVolTs = ql.BlackVolTermStructureHandle(ql.BlackConstantVol(today, ql.UnitedStates(), 0.2, ql.Actual365Fixed()))
+bsm = ql.BlackScholesProcess(spotHandle, flatRateTs, flatVolTs)
+
+binomialBarrierEngine = ql.BinomialBarrierEngine(bsm, 'crr', 200)
+AnalyticBarrierEngine
+ql.AnalyticBarrierEngine(process)
+today = ql.Date().todaysDate()
+
+spotHandle = ql.QuoteHandle(ql.SimpleQuote(100))
+flatRateTs = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.05, ql.Actual365Fixed()))
+flatVolTs = ql.BlackVolTermStructureHandle(ql.BlackConstantVol(today, ql.UnitedStates(), 0.2, ql.Actual365Fixed()))
+bsm = ql.BlackScholesProcess(spotHandle, flatRateTs, flatVolTs)
+
+analyticBarrierEngine = ql.AnalyticBarrierEngine(bsm)
+FdBlackScholesBarrierEngine
+ql.FdBlackScholesBarrierEngine(process, tGrid=100, xGrid=100, dampingSteps=0, FdmSchemeDesc=ql.FdmSchemeDesc.Douglas(), localVol=False, illegalLocalVolOverwrite=None)
+today = ql.Date().todaysDate()
+
+spotHandle = ql.QuoteHandle(ql.SimpleQuote(100))
+flatRateTs = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.05, ql.Actual365Fixed()))
+flatVolTs = ql.BlackVolTermStructureHandle(ql.BlackConstantVol(today, ql.UnitedStates(), 0.2, ql.Actual365Fixed()))
+bsm = ql.BlackScholesProcess(spotHandle, flatRateTs, flatVolTs)
+
+fdBarrierEngine = ql.FdBlackScholesBarrierEngine(bsm)
+FdBlackScholesRebateEngine
+ql.FdBlackScholesRebateEngine(process, tGrid=100, xGrid=100, dampingSteps=0, FdmSchemeDesc=ql.FdmSchemeDesc.Douglas(), localVol=False, illegalLocalVolOverwrite=None)
+today = ql.Date().todaysDate()
+
+spotHandle = ql.QuoteHandle(ql.SimpleQuote(100))
+flatRateTs = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.05, ql.Actual365Fixed()))
+flatVolTs = ql.BlackVolTermStructureHandle(ql.BlackConstantVol(today, ql.UnitedStates(), 0.2, ql.Actual365Fixed()))
+bsm = ql.BlackScholesProcess(spotHandle, flatRateTs, flatVolTs)
+
+fdRebateEngine = ql.FdBlackScholesRebateEngine(bsm)
+AnalyticBinaryBarrierEngine
+ql.AnalyticBinaryBarrierEngine(process)
+today = ql.Date().todaysDate()
+
+spotHandle = ql.QuoteHandle(ql.SimpleQuote(100))
+flatRateTs = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.05, ql.Actual365Fixed()))
+flatVolTs = ql.BlackVolTermStructureHandle(ql.BlackConstantVol(today, ql.UnitedStates(), 0.2, ql.Actual365Fixed()))
+bsm = ql.BlackScholesProcess(spotHandle, flatRateTs, flatVolTs)
+
+analyticBinaryBarrierEngine = ql.AnalyticBinaryBarrierEngine(bsm)
+FdHestonBarrierEngine
+If a leverage function (and optional mixing factor) is passed in to this function, it prices using the Heston Stochastic Local Vol model
+
+ql.FdHestonBarrierEngine(HestonModel, tGrid=100, xGrid=100, vGrid=50, dampingSteps=0, FdmSchemeDesc=ql.FdmSchemeDesc.Hundsdorfer(), leverageFct=LocalVolTermStructure(), mixingFactor=1.0)
+today = ql.Date().todaysDate()
+
+spotHandle = ql.QuoteHandle(ql.SimpleQuote(100))
+flatRateTs = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.05, ql.Actual365Fixed()))
+flatDividendTs = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.05, ql.Actual365Fixed()))
+
+v0, kappa, theta, sigma, rho = 0.01, 2.0, 0.01, 0.01, 0.0
+hestonProcess = ql.HestonProcess(flatRateTs, flatDividendTs, spotHandle, v0, kappa, theta, sigma, rho)
+hestonModel = ql.HestonModel(hestonProcess)
+
+hestonBarrierEngine = ql.FdHestonBarrierEngine(hestonModel)
+AnalyticDoubleBarrierEngine
+ql.AnalyticDoubleBarrierEngine(process)
+today = ql.Date().todaysDate()
+
+spotHandle = ql.QuoteHandle(ql.SimpleQuote(100))
+flatRateTs = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.05, ql.Actual365Fixed()))
+flatVolTs = ql.BlackVolTermStructureHandle(ql.BlackConstantVol(today, ql.UnitedStates(), 0.2, ql.Actual365Fixed()))
+bsm = ql.BlackScholesProcess(spotHandle, flatRateTs, flatVolTs)
+
+analyticDoubleBarrierEngine = ql.AnalyticDoubleBarrierEngine(bsm)
+AnalyticDoubleBarrierBinaryEngine
+ql.AnalyticDoubleBarrierBinaryEngine(process)
+today = ql.Date().todaysDate()
+
+spotHandle = ql.QuoteHandle(ql.SimpleQuote(100))
+flatRateTs = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.05, ql.Actual365Fixed()))
+flatVolTs = ql.BlackVolTermStructureHandle(ql.BlackConstantVol(today, ql.UnitedStates(), 0.2, ql.Actual365Fixed()))
+bsm = ql.BlackScholesProcess(spotHandle, flatRateTs, flatVolTs)
+
+analyticDoubleBinaryBarrierEngine = ql.AnalyticDoubleBarrierBinaryEngine(bsm)
+FdHestonDoubleBarrierEngine
+If a leverage function (and optional mixing factor) is passed in to this function, it prices using the Heston Stochastic Local Vol model
+
+ql.FdHestonDoubleBarrierEngine(HestonModel, tGrid=100, xGrid=100, vGrid=50, dampingSteps=0, FdmSchemeDesc=ql.FdmSchemeDesc.Hundsdorfer(), leverageFct=LocalVolTermStructure(), mixingFactor=1.0)
+today = ql.Date().todaysDate()
+
+spotHandle = ql.QuoteHandle(ql.SimpleQuote(100))
+flatRateTs = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.05, ql.Actual365Fixed()))
+flatDividendTs = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.05, ql.Actual365Fixed()))
+
+v0, kappa, theta, sigma, rho = 0.01, 2.0, 0.01, 0.01, 0.0
+hestonProcess = ql.HestonProcess(flatRateTs, flatDividendTs, spotHandle, v0, kappa, theta, sigma, rho)
+hestonModel = ql.HestonModel(hestonProcess)
+
+hestonDoubleBarrierEngine = ql.FdHestonDoubleBarrierEngine(hestonModel)
+Basket Options
+MCEuropeanBasketEngine
+ql.MCEuropeanBasketEngine(GeneralizedBlackScholesProcess, traits, timeSteps=None, timeStepsPerYear=None, brownianBridge=False, antitheticVariate=False, requiredSamples=None, requiredTolerance=None, maxSamples=None, seed=0)
+# Create a StochasticProcessArray for the various underlyings
+underlying_spots = [100., 100., 100., 100., 100.]
+underlying_vols = [0.1, 0.12, 0.13, 0.09, 0.11]
+underlying_corr_mat = [[1, 0.1, -0.1, 0, 0], [0.1, 1, 0, 0, 0.2], [-0.1, 0, 1, 0, 0], [0, 0, 0, 1, 0.15], [0, 0.2, 0, 0.15, 1]]
+
+today = ql.Date().todaysDate()
+day_count = ql.Actual365Fixed()
+calendar = ql.NullCalendar()
+
+riskFreeTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.0, day_count))
+dividendTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.0, day_count))
+
+processes = [ql.BlackScholesMertonProcess(ql.QuoteHandle(ql.SimpleQuote(x)),
+                                          dividendTS,
+                                          riskFreeTS,
+                                          ql.BlackVolTermStructureHandle(ql.BlackConstantVol(today, calendar, y, day_count)))
+             for x, y in zip(underlying_spots, underlying_vols)]
+
+multiProcess = ql.StochasticProcessArray(processes, underlying_corr_mat)
+
+# Create the pricing engine
+rng = "pseudorandom"
+numSteps = 500000
+stepsPerYear = 1
+seed = 43
+
+engine = ql.MCEuropeanBasketEngine(multiProcess, rng, timeStepsPerYear=stepsPerYear, requiredSamples=numSteps, seed=seed)
+Cliquet Options
+Forward Options
+ForwardEuropeanEngine
+This engine in python implements the C++ engine QuantLib::ForwardVanillaEngine (notice the subtle name change)
+
+ql.ForwardEuropeanEngine(process)
+today = ql.Date().todaysDate()
+riskFreeTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.05, ql.Actual365Fixed()))
+dividendTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.01, ql.Actual365Fixed()))
+volatility = ql.BlackVolTermStructureHandle(ql.BlackConstantVol(today, ql.NullCalendar(), 0.1, ql.Actual365Fixed()))
+initialValue = ql.QuoteHandle(ql.SimpleQuote(100))
+process = ql.BlackScholesMertonProcess(initialValue, dividendTS, riskFreeTS, volatility)
+
+engine = ql.ForwardEuropeanEngine(process)
+MCForwardEuropeanBSEngine
+ql.MCForwardEuropeanBSEngine(process, traits, timeSteps=None, timeStepsPerYear=None, brownianBridge=False, antitheticVariate=False, requiredSamples=None, requiredTolerance=None, maxSamples=None, seed=0)
+today = ql.Date().todaysDate()
+riskFreeTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.05, ql.Actual365Fixed()))
+dividendTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.01, ql.Actual365Fixed()))
+volatility = ql.BlackVolTermStructureHandle(ql.BlackConstantVol(today, ql.NullCalendar(), 0.1, ql.Actual365Fixed()))
+initialValue = ql.QuoteHandle(ql.SimpleQuote(100))
+
+process = ql.BlackScholesMertonProcess(initialValue, dividendTS, riskFreeTS, volatility)
+
+rng = "pseudorandom" # could use "lowdiscrepancy"
+numPaths = 100000
+
+engine = ql.MCForwardEuropeanBSEngine(process, rng, timeStepsPerYear=12, requiredSamples=numPaths)
+AnalyticHestonForwardEuropeanEngine
+ql.AnalyticHestonForwardEuropeanEngine(process, integrationOrder=144)
+today = ql.Date().todaysDate()
+riskFreeTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.05, ql.Actual365Fixed()))
+dividendTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.01, ql.Actual365Fixed()))
+initialValue = ql.QuoteHandle(ql.SimpleQuote(100))
+
+v0, kappa, theta, rho, sigma = 0.005, 0.8, 0.008, 0.2, 0.2
+hestonProcess = ql.HestonProcess(riskFreeTS, dividendTS, initialValue, v0, kappa, theta, sigma, rho)
+
+engine = ql.AnalyticHestonForwardEuropeanEngine(hestonProcess)
+MCForwardEuropeanHestonEngine
+ql.MCForwardEuropeanHestonEngine(hestonProcess, traits, timeSteps=None, timeStepsPerYear=None, antitheticVariate=False, requiredSamples=None, requiredTolerance=None, maxSamples=None, seed=0, controlVariate=False)
+today = ql.Date().todaysDate()
+riskFreeTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.05, ql.Actual365Fixed()))
+dividendTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.01, ql.Actual365Fixed()))
+initialValue = ql.QuoteHandle(ql.SimpleQuote(100))
+
+v0, kappa, theta, rho, sigma = 0.005, 0.8, 0.008, 0.2, 0.2
+hestonProcess = ql.HestonProcess(riskFreeTS, dividendTS, initialValue, v0, kappa, theta, sigma, rho)
+
+rng = "pseudorandom" # could use "lowdiscrepancy"
+numPaths = 100000
+
+engine = ql.MCForwardEuropeanHestonEngine(hestonProcess, rng, timeStepsPerYear=12, requiredSamples=numPaths)
+
+
+Pricing Models
+Equity
+Heston
+HestonModel
+ql.HestonModel(HestonProcess)
+today = ql.Date().todaysDate()
+riskFreeTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.05, ql.Actual365Fixed()))
+dividendTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.01, ql.Actual365Fixed()))
+
+initialValue = ql.QuoteHandle(ql.SimpleQuote(100))
+
+v0 = 0.005
+theta = 0.010
+kappa = 0.600
+sigma = 0.400
+rho = -0.15
+
+hestonProcess = ql.HestonProcess(riskFreeTS, dividendTS, initialValue, v0, kappa, theta, sigma, rho)
+hestonModel = ql.HestonModel(hestonProcess)
+PiecewiseTimeDependentHestonModel
+ql.PiecewiseTimeDependentHestonModel(riskFreeRate, dividendYield, s0, v0, theta, kappa, sigma, rho, timeGrid)
+today = ql.Date().todaysDate()
+riskFreeTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.05, ql.Actual365Fixed()))
+dividendTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.01, ql.Actual365Fixed()))
+
+initialValue = ql.QuoteHandle(ql.SimpleQuote(100))
+
+times = [1.0, 2.0, 3.0]
+grid = ql.TimeGrid(times)
+
+v0 = 0.005
+theta = [0.010, 0.015, 0.02]
+kappa = [0.600, 0.500, 0.400]
+sigma = [0.400, 0.350, 0.300]
+rho = [-0.15, -0.10, -0.00]
+
+kappaTS = ql.PiecewiseConstantParameter(times[:-1], ql.PositiveConstraint())
+thetaTS = ql.PiecewiseConstantParameter(times[:-1], ql.PositiveConstraint())
+rhoTS = ql.PiecewiseConstantParameter(times[:-1], ql.BoundaryConstraint(-1.0, 1.0))
+sigmaTS = ql.PiecewiseConstantParameter(times[:-1], ql.PositiveConstraint())
+
+for i, time in enumerate(times):
+    kappaTS.setParam(i, kappa[i])
+    thetaTS.setParam(i, theta[i])
+    rhoTS.setParam(i, rho[i])
+    sigmaTS.setParam(i, sigma[i])
+
+hestonModelPTD = ql.PiecewiseTimeDependentHestonModel(riskFreeTS, dividendTS, initialValue, v0, thetaTS, kappaTS, sigmaTS, rhoTS, grid)
+Bates
+Short Rate Models
+One Factor Models
+Vasicek: (r0=0.05, a=0.1, b=0.05, sigma=0.01, lambda=0.0)
+
+BlackKarasinski: (YieldTermStructure, a=0.1, sigma=0.1)
+
+HullWhite: (YieldTermStructure, a=0.1, sigma=0.01)
+
+Gsr()
+
+Vasicek
+ql.Vasicek(r0=0.05, a=0.1, b=0.05, sigma=0.01, lambda=0.0)
+BlackKarasinski
+ql.BlackKarasinski(termStructure, a=0.1, sigma=0.1)
+HullWhite
+ql.HullWhite(termStructure, a=0.1, sigma=0.01)
+Gsr
+One factor gsr model, formulation is in forward measure.
+
+ql.Gsr(termStruncture, volstepdates, volatilities, reversions)
+Two Factor Models
+G2
+ql.G2(termStructure, a=0.1, sigma=0.01, b=0.1, eta=0.01, rho=-0.75)
+
+
+Term Structures
+Yield Term Structures
+FlatForward
+Flat interest-rate curve.
+
+ql.FlatForward(date, quote, dayCounter, compounding, frequency)
+ql.FlatForward(integer, Calendar, quote, dayCounter, compounding, frequency)
+ql.FlatForward(integer, rate, dayCounter)
+Examples:
+
+ql.FlatForward(ql.Date(15,6,2020), ql.QuoteHandle(ql.SimpleQuote(0.05)), ql.Actual360(), ql.Compounded, ql.Annual)
+ql.FlatForward(ql.Date(15,6,2020), ql.QuoteHandle(ql.SimpleQuote(0.05)), ql.Actual360(), ql.Compounded)
+ql.FlatForward(ql.Date(15,6,2020), ql.QuoteHandle(ql.SimpleQuote(0.05)), ql.Actual360())
+ql.FlatForward(2, ql.TARGET(), ql.QuoteHandle(ql.SimpleQuote(0.05)), ql.Actual360())
+ql.FlatForward(2, ql.TARGET(), 0.05, ql.Actual360())
+DiscountCurve
+Term structure based on log-linear interpolation of discount factors.
+
+ql.DiscountCurve(dates, dfs, dayCounter, cal=ql.NullCalendar())
+Example:
+
+dates = [ql.Date(7,5,2019), ql.Date(7,5,2020), ql.Date(7,5,2021)]
+dfs = [1, 0.99, 0.98]
+dayCounter = ql.Actual360()
+curve = ql.DiscountCurve(dates, dfs, dayCounter)
+ZeroCurve
+ZeroCurve
+
+LogLinearZeroCurve
+
+CubicZeroCurve
+
+NaturalCubicZeroCurve
+
+LogCubicZeroCurve
+
+MonotonicCubicZeroCurve
+
+ql.ZeroCurve(dates, yields, dayCounter, cal, i, comp, freq)
+Dates
+
+The date sequence, the maturity date corresponding to the zero interest rate. Note: The first date must be the base date of the curve, such as a date with a yield of 0.0.
+
+yields
+
+a sequence of floating point numbers, zero coupon yield
+
+dayCounter
+
+DayCounter object, number of days calculation rule
+
+cal
+
+Calendar object, calendar
+
+i
+
+Linear object, linear interpolation method
+
+comp and freq
+
+are preset integers indicating the way and frequency of payment
+
+dates = [ql.Date(31,12,2019),  ql.Date(31,12,2020),  ql.Date(31,12,2021)]
+zeros = [0.01, 0.02, 0.03]
+
+ql.ZeroCurve(dates, zeros, ql.ActualActual(), ql.TARGET())
+ql.LogLinearZeroCurve(dates, zeros, ql.ActualActual(), ql.TARGET())
+ql.CubicZeroCurve(dates, zeros, ql.ActualActual(), ql.TARGET())
+ql.NaturalCubicZeroCurve(dates, zeros, ql.ActualActual(), ql.TARGET())
+ql.LogCubicZeroCurve(dates, zeros, ql.ActualActual(), ql.TARGET())
+ql.MonotonicCubicZeroCurve(dates, zeros, ql.ActualActual(), ql.TARGET())
+ForwardCurve
+Term structure based on flat interpolation of forward rates.
+
+ql.ForwardCurve(dates, rates, dayCounter)
+ql.ForwardCurve(dates, rates, dayCounter, calendar, BackwardFlat)
+ql.ForwardCurve(dates, date, rates, rate, dayCounter, calendar)
+ql.ForwardCurve(dates, date, rates, rate, dayCounter)
+dates = [ql.Date(15,6,2020), ql.Date(15,6,2022), ql.Date(15,6,2023)]
+rates = [0.02, 0.03, 0.04]
+ql.ForwardCurve(dates, rates, ql.Actual360(), ql.TARGET())
+ql.ForwardCurve(dates, rates, ql.Actual360())
+Piecewise
+Piecewise yield term structure. This term structure is bootstrapped on a number of interest rate instruments which are passed as a vector of RateHelper instances. Their maturities mark the boundaries of the interpolated segments.
+
+Each segment is determined sequentially starting from the earliest period to the latest and is chosen so that the instrument whose maturity marks the end of such segment is correctly repriced on the curve.
+
+PiecewiseLogLinearDiscount
+
+PiecewiseLogCubicDiscount
+
+PiecewiseLinearZero
+
+PiecewiseCubicZero
+
+PiecewiseLinearForward
+
+PiecewiseSplineCubicDiscount
+
+ql.Piecewise(referenceDate, helpers, dayCounter)
+helpers = []
+helpers.append( ql.DepositRateHelper(0.05, ql.Euribor6M()) )
+helpers.append(
+    ql.SwapRateHelper(0.06, ql.EuriborSwapIsdaFixA(ql.Period('1y')))
+)
+curve = ql.PiecewiseLogLinearDiscount(ql.Date(15,6,2020), helpers, ql.Actual360())
+ql.PiecewiseYieldCurve(referenceDate, instruments, dayCounter, jumps, jumpDate, i=Interpolator(), bootstrap=bootstrap_type())
+referenceDate = ql.Date(15,6,2020)
+ql.PiecewiseLogLinearDiscount(referenceDate, helpers, ql.ActualActual())
+
+jumps = [ql.QuoteHandle(ql.SimpleQuote(0.01))]
+ql.PiecewiseLogLinearDiscount(referenceDate, helpers, ql.ActualActual(), jumps)
+
+jumpDates = [ql.Date(15,9,2020)]
+ql.PiecewiseLogLinearDiscount(referenceDate, helpers, ql.ActualActual(), jumps, jumpDates)
+import pandas as pd
+pgbs = pd.DataFrame(
+    {'maturity': ['15-06-2020', '15-04-2021', '17-10-2022', '25-10-2023',
+                  '15-02-2024', '15-10-2025', '21-07-2026', '14-04-2027',
+                  '17-10-2028', '15-06-2029', '15-02-2030', '18-04-2034',
+                  '15-04-2037', '15-02-2045'],
+    'coupon': [4.8, 3.85, 2.2, 4.95,  5.65, 2.875, 2.875, 4.125,
+                2.125, 1.95, 3.875, 2.25, 4.1, 4.1],
+    'px': [102.532, 105.839, 107.247, 119.824, 124.005, 116.215, 117.708,
+            128.027, 115.301, 114.261, 133.621, 119.879, 149.427, 159.177]})
+
+calendar = ql.TARGET()
+today = calendar.adjust(ql.Date(19, 12, 2019))
+ql.Settings.instance().evaluationDate = today
+
+bondSettlementDays = 2
+bondSettlementDate = calendar.advance(
+    today,
+    ql.Period(bondSettlementDays, ql.Days))
+frequency = ql.Annual
+dc = ql.ActualActual(ql.ActualActual.ISMA)
+accrualConvention = ql.ModifiedFollowing
+convention = ql.ModifiedFollowing
+redemption = 100.0
+
+instruments = []
+for idx, row in pgbs.iterrows():
+    maturity = ql.Date(row.maturity, '%d-%m-%Y')
+    schedule = ql.Schedule(
+        bondSettlementDate,
+        maturity,
+        ql.Period(frequency),
+        calendar,
+        accrualConvention,
+        accrualConvention,
+        ql.DateGeneration.Backward,
+        False)
+    helper = ql.FixedRateBondHelper(
+            ql.QuoteHandle(ql.SimpleQuote(row.px)),
+            bondSettlementDays,
+            100.0,
+            schedule,
+            [row.coupon / 100],
+            dc,
+            convention,
+            redemption)
+
+    instruments.append(helper)
+
+params = [bondSettlementDate, instruments, dc]
+
+piecewiseMethods = {
+    'logLinearDiscount': ql.PiecewiseLogLinearDiscount(*params),
+    'logCubicDiscount': ql.PiecewiseLogCubicDiscount(*params),
+    'linearZero': ql.PiecewiseLinearZero(*params),
+    'cubicZero': ql.PiecewiseCubicZero(*params),
+    'linearForward': ql.PiecewiseLinearForward(*params),
+    'splineCubicDiscount': ql.PiecewiseSplineCubicDiscount(*params),
+}
+ImpliedTermStructure
+Implied term structure at a given date in the future
+
+ql.ImpliedTermStructure(YieldTermStructure, date)
+crv = ql.FlatForward(ql.Date(10,1,2020),0.04875825,ql.Actual365Fixed())
+yts = ql.YieldTermStructureHandle(crv)
+ql.ImpliedTermStructure(yts, ql.Date(20,9,2020))
+ForwardSpreadedTermStructure
+Term structure with added spread on the instantaneous forward rate.
+
+ql.ForwardSpreadedTermStructure(YieldTermStructure, spread)
+crv = ql.FlatForward(ql.Date(10,1,2020),0.04875825,ql.Actual365Fixed())
+yts = ql.YieldTermStructureHandle(crv)
+spread = ql.QuoteHandle(ql.SimpleQuote(0.005))
+ql.ForwardSpreadedTermStructure(yts, spread)
+ZeroSpreadedTermStructure
+Term structure with an added spread on the zero yield rate
+
+ql.ZeroSpreadedTermStructure(YieldTermStructure, spread)
+crv = ql.FlatForward(ql.Date(10,1,2020),0.04875825,ql.Actual365Fixed())
+yts = ql.YieldTermStructureHandle(crv)
+spread = ql.QuoteHandle(ql.SimpleQuote(0.005))
+ql.ZeroSpreadedTermStructure(yts, spread)
+SpreadedLinearZeroInterpolatedTermStructure
+ql.SpreadedLinearZeroInterpolatedTermStructure(YieldTermStructure, quotes, dates, compounding, frequency, dayCounter, linear)
+crv = ql.FlatForward(settlement,0.04875825,ql.Actual365Fixed())
+yts = ql.YieldTermStructureHandle(crv)
+
+calendar = ql.TARGET()
+spread21 = ql.SimpleQuote(0.0050)
+spread22 = ql.SimpleQuote(0.0050)
+startDate = ql.Date().todaysDate()
+endDate = calendar.advance(startDate, ql.Period(50, ql.Years))
+
+tsSpread = ql.SpreadedLinearZeroInterpolatedTermStructure(
+    yts,
+    [ql.QuoteHandle(spread21), ql.QuoteHandle(spread22)],
+    [startDate, endDate]
+)
+FittedBondCurve
+ql.FittedBondDiscountCurve(bondSettlementDate, helpers, dc, method, accuracy=1.0e-10, maxEvaluations=10000, guess=Array(), simplexLambda=1.0)
+Methods:
+
+CubicBSplinesFitting
+
+ExponentialSplinesFitting
+
+NelsonSiegelFitting
+
+SimplePolynomialFitting
+
+SvenssonFitting
+
+pgbs = pd.DataFrame(
+    {'maturity': ['15-06-2020', '15-04-2021', '17-10-2022', '25-10-2023',
+                  '15-02-2024', '15-10-2025', '21-07-2026', '14-04-2027',
+                  '17-10-2028', '15-06-2029', '15-02-2030', '18-04-2034',
+                  '15-04-2037', '15-02-2045'],
+    'coupon': [4.8, 3.85, 2.2, 4.95,  5.65, 2.875, 2.875, 4.125,
+                2.125, 1.95, 3.875, 2.25, 4.1, 4.1],
+    'px': [102.532, 105.839, 107.247, 119.824, 124.005, 116.215, 117.708,
+            128.027, 115.301, 114.261, 133.621, 119.879, 149.427, 159.177]})
+
+calendar = ql.TARGET()
+today = calendar.adjust(ql.Date(19, 12, 2019))
+ql.Settings.instance().evaluationDate = today
+
+bondSettlementDays = 2
+bondSettlementDate = calendar.advance(
+    today,
+    ql.Period(bondSettlementDays, ql.Days))
+frequency = ql.Annual
+dc = ql.ActualActual(ql.ActualActual.ISMA)
+accrualConvention = ql.ModifiedFollowing
+convention = ql.ModifiedFollowing
+redemption = 100.0
+
+instruments = []
+for idx, row in pgbs.iterrows():
+    maturity = ql.Date(row.maturity, '%d-%m-%Y')
+    schedule = ql.Schedule(
+        bondSettlementDate,
+        maturity,
+        ql.Period(frequency),
+        calendar,
+        accrualConvention,
+        accrualConvention,
+        ql.DateGeneration.Backward,
+        False)
+    helper = ql.FixedRateBondHelper(
+            ql.QuoteHandle(ql.SimpleQuote(row.px)),
+            bondSettlementDays,
+            100.0,
+            schedule,
+            [row.coupon / 100],
+            dc,
+            convention,
+            redemption)
+
+    instruments.append(helper)
+
+params = [bondSettlementDate, instruments, dc]
+
+cubicNots = [-30.0, -20.0, 0.0, 5.0, 10.0, 15.0,20.0, 25.0, 30.0, 40.0, 50.0]
+fittingMethods = {
+    'NelsonSiegelFitting': ql.NelsonSiegelFitting(),
+    'SvenssonFitting': ql.SvenssonFitting(),
+    'SimplePolynomialFitting': ql.SimplePolynomialFitting(2),
+    'ExponentialSplinesFitting': ql.ExponentialSplinesFitting(),
+    'CubicBSplinesFitting': ql.CubicBSplinesFitting(cubicNots),
+}
+
+fittedBondCurveMethods = {
+    label: ql.FittedBondDiscountCurve(*params, method)
+    for label, method in fittingMethods.items()
+}
+
+curve = fittedBondCurveMethods.get('NelsonSiegelFitting')
+FXImpliedCurve
+Volatility
+BlackConstantVol
+ql.BlackConstantVol(date, calendar, volatility, dayCounter)
+ql.BlackConstantVol(date, calendar, volatilityHandle, dayCounter)
+ql.BlackConstantVol(days, calendar, volatility, dayCounter)
+ql.BlackConstantVol(days, calendar, volatilityHandle, dayCounter)
+date = ql.Date().todaysDate()
+settlementDays = 2
+calendar = ql.TARGET()
+volatility = 0.2
+volHandle = ql.QuoteHandle(ql.SimpleQuote(volatility))
+dayCounter = ql.Actual360()
+
+ql.BlackConstantVol(date, calendar, volatility, dayCounter)
+ql.BlackConstantVol(date, calendar, volHandle, dayCounter)
+ql.BlackConstantVol(settlementDays, calendar, volatility, dayCounter)
+ql.BlackConstantVol(settlementDays, calendar, volHandle, dayCounter)
+BlackVarianceCurve
+ql.BlackVarianceCurve(referenceDate, expirations, volatilities, dayCounter)
+referenceDate = ql.Date(30, 9, 2013)
+expirations = [ql.Date(20, 12, 2013), ql.Date(17, 1, 2014), ql.Date(21, 3, 2014)]
+volatilities = [.145, .156, .165]
+volatilityCurve = ql.BlackVarianceCurve(referenceDate, expirations, volatilities, ql.Actual360())
+BlackVarianceSurface
+ql.BlackVarianceSurface(referenceDate, calendar, expirations, strikes, volMatrix, dayCounter)
+referenceDate = ql.Date(30, 9, 2013)
+ql.Settings.instance().evaluationDate = referenceDate;
+calendar = ql.TARGET()
+dayCounter = ql.ActualActual()
+
+strikes = [1650.0, 1660.0, 1670.0]
+expirations = [ql.Date(20, 12, 2013), ql.Date(17, 1, 2014), ql.Date(21, 3, 2014)]
+
+volMatrix = ql.Matrix(len(strikes), len(expirations))
+
+#1650 - Dec, Jan, Mar
+volMatrix[0][0] = .15640; volMatrix[0][1] = .15433; volMatrix[0][2] = .16079;
+#1660 - Dec, Jan, Mar
+volMatrix[1][0] = .15343; volMatrix[1][1] = .15240; volMatrix[1][2] = .15804;
+#1670 - Dec, Jan, Mar
+volMatrix[2][0] = .15128; volMatrix[2][1] = .14888; volMatrix[2][2] = .15512;
+
+volatilitySurface = ql.BlackVarianceSurface(
+    referenceDate,
+    calendar,
+    expirations,
+    strikes,
+    volMatrix,
+    dayCounter
+)
+volatilitySurface.enableExtrapolation()
+HestonBlackVolSurface
+ql.HestonBlackVolSurface(hestonModelHandle)
+flatTs = ql.YieldTermStructureHandle(
+  ql.FlatForward(ql.Date().todaysDate(), 0.05, ql.Actual365Fixed())
+)
+dividendTs = ql.YieldTermStructureHandle(
+  ql.FlatForward(ql.Date().todaysDate(), 0.02, ql.Actual365Fixed())
+)
+
+v0 = 0.01; kappa = 0.01; theta = 0.01; rho = 0.0; sigma = 0.01
+spot = 100
+process = ql.HestonProcess(flatTs, dividendTs,
+                            ql.QuoteHandle(ql.SimpleQuote(spot)),
+                            v0, kappa, theta, sigma, rho
+                            )
+
+hestonModel = ql.HestonModel(process)
+hestonHandle = ql.HestonModelHandle(hestonModel)
+hestonVolSurface = ql.HestonBlackVolSurface(hestonHandle)
+AndreasenHugeVolatilityAdapter
+An implementation of the arb-free Andreasen-Huge vol interpolation described in “Andreasen J., Huge B., 2010. Volatility Interpolation” (https://ssrn.com/abstract=1694972). An advantage of this method is that it can take a non-rectangular grid of option quotes.
+
+ql.AndreasenHugeVolatilityAdapter(AndreasenHugeVolatilityInterpl)
+today = ql.Date().todaysDate()
+calendar = ql.NullCalendar()
+dayCounter = ql.Actual365Fixed()
+spot = 100
+r, q = 0.02, 0.05
+
+spotQuote = ql.QuoteHandle(ql.SimpleQuote(spot))
+ratesTs = ql.YieldTermStructureHandle(ql.FlatForward(today, r, dayCounter))
+dividendTs = ql.YieldTermStructureHandle(ql.FlatForward(today, q, dayCounter))
+
+# Market options price quotes
+optionStrikes = [95, 97.5, 100, 102.5, 105, 90, 95, 100, 105, 110, 80, 90, 100, 110, 120]
+optionMaturities = ["3M", "3M", "3M", "3M", "3M", "6M", "6M", "6M", "6M", "6M", "1Y", "1Y", "1Y", "1Y", "1Y"]
+optionQuotedVols = [0.11, 0.105, 0.1, 0.095, 0.095, 0.12, 0.11, 0.105, 0.1, 0.105, 0.12, 0.115, 0.11, 0.11, 0.115]
+
+calibrationSet = ql.CalibrationSet()
+
+for strike, expiry, impliedVol in zip(optionStrikes, optionMaturities, optionQuotedVols):
+  payoff = ql.PlainVanillaPayoff(ql.Option.Call, strike)
+  exercise = ql.EuropeanExercise(calendar.advance(today, ql.Period(expiry)))
+
+  calibrationSet.push_back((ql.VanillaOption(payoff, exercise), ql.SimpleQuote(impliedVol)))
+
+ahInterpolation = ql.AndreasenHugeVolatilityInterpl(calibrationSet, spotQuote, ratesTs, dividendTs)
+ahSurface = ql.AndreasenHugeVolatilityAdapter(ahInterpolation)
+BlackVolTermStructureHandle
+ql.BlackVolTermStructureHandle(blackVolTermStructure)
+ql.BlackVolTermStructureHandle(constantVol)
+ql.BlackVolTermStructureHandle(volatilityCurve)
+ql.BlackVolTermStructureHandle(volatilitySurface)
+RelinkableBlackVolTermStructureHandle
+ql.RelinkableBlackVolTermStructureHandle()
+ql.RelinkableBlackVolTermStructureHandle(blackVolTermStructure)
+blackTSHandle = ql.RelinkableBlackVolTermStructureHandle(volatilitySurface)
+
+blackTSHandle = ql.RelinkableBlackVolTermStructureHandle()
+blackTSHandle.linkTo(volatilitySurface)
+LocalConstantVol
+ql.LocalConstantVol(date, volatility, dayCounter)
+date = ql.Date().todaysDate()
+volatility = 0.2
+dayCounter = ql.Actual360()
+
+ql.LocalConstantVol(date, volatility, dayCounter)
+LocalVolSurface
+ql.LocalVolSurface(blackVolTs, ratesTs, dividendsTs, spot)
+today = ql.Date().todaysDate()
+calendar = ql.NullCalendar()
+dayCounter = ql.Actual365Fixed()
+volatility = 0.2
+r, q = 0.02, 0.05
+
+blackVolTs = ql.BlackVolTermStructureHandle(ql.BlackConstantVol(today, calendar, volatility, dayCounter))
+ratesTs = ql.YieldTermStructureHandle(ql.FlatForward(today, r, dayCounter))
+dividendTs = ql.YieldTermStructureHandle(ql.FlatForward(today, q, dayCounter))
+spot = 100
+
+ql.LocalVolSurface(blackVolTs, ratesTs, dividendTs, spot)
+NoExceptLocalVolSurface
+This powerful but dangerous surface will swallow any exceptions and return the specified override value when they occur. If your vol surface is well-calibrated, this protects you from crashes due to very far illiquid points on the local vol surface. But if your vol surface is not good, it could suppress genuine errors. Caution recommended.
+
+ql.NoExceptLocalVolSurface(blackVolTs, ratesTs, dividendsTs, spot, illegalVolOverride)
+today = ql.Date().todaysDate()
+calendar = ql.NullCalendar()
+dayCounter = ql.Actual365Fixed()
+r, q = 0.02, 0.05
+volatility = 0.2
+illegalVolOverride = 0.25
+
+blackVolTs = ql.BlackVolTermStructureHandle(ql.BlackConstantVol(today, calendar, volatility, dayCounter))
+ratesTs = ql.YieldTermStructureHandle(ql.FlatForward(today, r, dayCounter))
+dividendTs = ql.YieldTermStructureHandle(ql.FlatForward(today, q, dayCounter))
+spot = 100
+
+ql.NoExceptLocalVolSurface(blackVolTs, ratesTs, dividendTs, spot, illegalVolOverride)
+AndreasenHugeLocalVolAdapter
+ql.AndreasenHugeLocalVolAdapter(AndreasenHugeVolatilityInterpl)
+today = ql.Date().todaysDate()
+calendar = ql.NullCalendar()
+dayCounter = ql.Actual365Fixed()
+spot = 100
+r, q = 0.02, 0.05
+
+spotQuote = ql.QuoteHandle(ql.SimpleQuote(spot))
+ratesTs = ql.YieldTermStructureHandle(ql.FlatForward(today, r, dayCounter))
+dividendTs = ql.YieldTermStructureHandle(ql.FlatForward(today, q, dayCounter))
+
+# Market options price quotes
+optionStrikes = [95, 97.5, 100, 102.5, 105, 90, 95, 100, 105, 110, 80, 90, 100, 110, 120]
+optionMaturities = ["3M", "3M", "3M", "3M", "3M", "6M", "6M", "6M", "6M", "6M", "1Y", "1Y", "1Y", "1Y", "1Y"]
+optionQuotedVols = [0.11, 0.105, 0.1, 0.095, 0.095, 0.12, 0.11, 0.105, 0.1, 0.105, 0.12, 0.115, 0.11, 0.11, 0.115]
+
+calibrationSet = ql.CalibrationSet()
+
+for strike, expiry, impliedVol in zip(optionStrikes, optionMaturities, optionQuotedVols):
+  payoff = ql.PlainVanillaPayoff(ql.Option.Call, strike)
+  exercise = ql.EuropeanExercise(calendar.advance(today, ql.Period(expiry)))
+
+  calibrationSet.push_back((ql.VanillaOption(payoff, exercise), ql.SimpleQuote(impliedVol)))
+
+ahInterpolation = ql.AndreasenHugeVolatilityInterpl(calibrationSet, spotQuote, ratesTs, dividendTs)
+ahLocalSurface = ql.AndreasenHugeLocalVolAdapter(ahInterpolation)
+LocalVolTermStructureHandle
+Cap Volatility
+ConstantOptionletVolatility
+floating reference date, floating market data
+
+ql.ConstantOptionletVolatility(settlementDays, cal, bdc, volatility (Quote), dc, type=ShiftedLognormal, displacement=0.0)
+fixed reference date, floating market data
+
+ql.ConstantOptionletVolatility(settlementDate, cal, bdc, volatility (Quote), dc, type=ShiftedLognormal, displacement=0.0)
+floating reference date, fixed market data
+
+ql.ConstantOptionletVolatility(settlementDays, cal, bdc, volatility (value), dc, type=ShiftedLognormal, displacement=0.0)
+fixed reference date, fixed market data
+
+ql.ConstantOptionletVolatility(settlementDate, cal, bdc, volatility (value), dc, type=ShiftedLognormal, displacement=0.0)
+settlementDays = 2
+settlementDate = ql.Date().todaysDate()
+cal = ql.TARGET()
+bdc = ql.ModifiedFollowing
+volatility = 0.55
+vol_quote = ql.QuoteHandle(ql.SimpleQuote(volatility))
+dc = ql.Actual365Fixed()
+
+#floating reference date, floating market data
+c1 = ql.ConstantOptionletVolatility(settlementDays, cal, bdc, vol_quote, dc, ql.Normal)
+
+#fixed reference date, floating market data
+c2 = ql.ConstantOptionletVolatility(settlementDate, cal, bdc, vol_quote, dc)
+
+#floating reference date, fixed market data
+c3 = ql.ConstantOptionletVolatility(settlementDays, cal, bdc, volatility, dc)
+
+#fixed reference date, fixed market data
+c4 = ql.ConstantOptionletVolatility(settlementDate, cal, bdc, volatility, dc)
+CapFloorTermVolCurve
+Cap/floor at-the-money term-volatility vector.
+
+floating reference date, floating market data
+
+ql.CapFloorTermVolCurve(settlementDays, calendar, bdc, optionTenors, vols (Quotes), dc=Actual365Fixed)
+fixed reference date, floating market data
+
+ql.CapFloorTermVolCurve(settlementDate, calendar, bdc, optionTenors, vols (Quotes), dc=Actual365Fixed)
+fixed reference date, fixed market data
+
+ql.CapFloorTermVolCurve(settlementDate, calendar, bdc, optionTenors, vols (vector), dc=Actual365Fixed)
+floating reference date, fixed market data
+
+ql.CapFloorTermVolCurve(settlementDays, calendar, bdc, optionTenors, vols (vector), dc=Actual365Fixed)
+settlementDate = ql.Date().todaysDate()
+settlementDays = 2
+calendar = ql.TARGET()
+bdc = ql.ModifiedFollowing
+optionTenors  = [ql.Period('1y'), ql.Period('2y'), ql.Period('3y')]
+vols = [0.55, 0.60, 0.65]
+
+# fixed reference date, fixed market data
+c3 = ql.CapFloorTermVolCurve(settlementDate, calendar, bdc, optionTenors, vols)
+
+# floating reference date, fixed market data
+c4 = ql.CapFloorTermVolCurve(settlementDays, calendar, bdc, optionTenors, vols)
+CapFloorTermVolSurface
+floating reference date, floating market data
+
+ql.CapFloorTermVolSurface(settlementDays, calendar, bdc, expiries, strikes, vol_data (Handle), daycount=ql.Actual365Fixed)
+fixed reference date, floating market data
+
+ql.CapFloorTermVolSurface(settlementDate, calendar, bdc, expiries, strikes, vol_data (Handle), daycount=ql.Actual365Fixed)
+fixed reference date, fixed market data
+
+ql.CapFloorTermVolSurface(settlementDate, calendar, bdc, expiries, strikes, vol_data (Matrix), daycount=ql.Actual365Fixed)
+floating reference date, fixed market data
+
+ql.CapFloorTermVolSurface(settlementDays, calendar, bdc, expiries, strikes, vol_data (Matrix), daycount=ql.Actual365Fixed)
+settlementDate = ql.Date().todaysDate()
+settlementDays = 2
+calendar = ql.TARGET()
+bdc = ql.ModifiedFollowing
+expiries  = [ql.Period('9y'), ql.Period('10y'), ql.Period('12y')]
+strikes = [0.015, 0.02, 0.025]
+
+black_vols = [
+    [1.    , 0.792 , 0.6873],
+    [0.9301, 0.7401, 0.6403],
+    [0.7926, 0.6424, 0.5602]]
+
+
+# fixed reference date, fixed market data
+s3 = ql.CapFloorTermVolSurface(settlementDate, calendar, bdc, expiries, strikes, black_vols)
+
+# floating reference date, fixed market data
+s4 = ql.CapFloorTermVolSurface(settlementDays, calendar, bdc, expiries, strikes, black_vols)
+OptionletStripper1
+ql.OptionletStripper1(CapFloorTermVolSurface, index, switchStrikes=Null, accuracy=1.0e-6, maxIter=100, discount=YieldTermStructure, type=ShiftedLognormal, displacement=0.0, dontThrow=false)
+index = ql.Euribor6M()
+optionlet_surf = ql.OptionletStripper1(s3, index, type=ql.Normal)
+StrippedOptionletAdapter
+ql.StrippedOptionletAdapter(StrippedOptionletBase)
+OptionletVolatilityStructureHandle
+ql.OptionletVolatilityStructureHandle(OptionletVolatilityStructure)
+ovs_handle = ql.OptionletVolatilityStructureHandle(
+    ql.StrippedOptionletAdapter(optionlet_surf)
+)
+RelinkableOptionletVolatilityStructureHandle
+ql.RelinkableOptionletVolatilityStructureHandle()
+ovs_handle = ql.RelinkableOptionletVolatilityStructureHandle()
+ovs_handle.linkTo(ql.StrippedOptionletAdapter(optionlet_surf))
+Swaption Volatility
+ConstantSwaptionVolatility
+Constant swaption volatility, no time-strike dependence.
+
+floating reference date, floating market data
+
+ql.ConstantSwaptionVolatility(settlementDays, cal, bdc, volatility, dc, type=ql.ShiftedLognormal, shift=0.0)
+fixed reference date, floating market data
+
+ql.ConstantSwaptionVolatility(settlementDate, cal, bdc, volatility, dc, type=ql.ShiftedLognormal, shift=0.0)
+floating reference date, fixed market data
+
+ql.ConstantSwaptionVolatility(settlementDays, cal, bdc, volatilityQuote, dc, type=ql.ShiftedLognormal, shift=0.0)
+fixed reference date, fixed market data
+
+ql.ConstantSwaptionVolatility(settlementDate, cal, bdc, volatilityQuote, dc, type=ql.ShiftedLognormal, shift=0.0)
+constantSwaptionVol = ql.ConstantSwaptionVolatility(2, ql.TARGET(), ql.ModifiedFollowing, ql.QuoteHandle(ql.SimpleQuote(0.55)), ql.ActualActual())
+SwaptionVolatilityMatrix
+At-the-money swaption-volatility matrix.
+
+floating reference date, floating market data
+
+ql.SwaptionVolatilityMatrix(calendar, bdc, optionTenors, swapTenors, vols (Handles), dayCounter, flatExtrapolation=false, type=ShiftedLognormal, shifts (vector))
+fixed reference date, floating market data
+
+ql.SwaptionVolatilityMatrix(referenceDate, calendar, bdc, optionTenors, swapTenors, vols (Handles), dayCounter, flatExtrapolation=false, type=ShiftedLognormal, shifts (vector))
+floating reference date, fixed market data
+
+ql.SwaptionVolatilityMatrix(calendar, bdc, optionTenors, swapTenors, vols (matrix), dayCounter, flatExtrapolation=false, type=ShiftedLognormal, shifts (matrix))
+fixed reference date, fixed market data
+
+ql.SwaptionVolatilityMatrix(referenceDate, calendar, bdc, optionTenors, swapTenors, vols (matrix), dayCounter, flatExtrapolation=false, type=ShiftedLognormal, shifts (matrix))
+fixed reference date and fixed market data, option dates
+
+ql.SwaptionVolatilityMatrix(referenceDate, calendar, bdc, optionDates, swapTenors, vols (matrix), dayCounter, flatExtrapolation=false, type=ShiftedLognormal, shifts (matrix))
+# market Data 07.01.2020
+
+swapTenors = [
+    '1Y', '2Y', '3Y', '4Y', '5Y',
+    '6Y', '7Y', '8Y', '9Y', '10Y',
+    '15Y', '20Y', '25Y', '30Y']
+
+optionTenors = [
+    '1M', '2M', '3M', '6M', '9M', '1Y',
+    '18M', '2Y', '3Y', '4Y', '5Y', '7Y',
+    '10Y', '15Y', '20Y', '25Y', '30Y']
+
+normal_vols = [
+    [8.6, 12.8, 19.5, 26.9, 32.7, 36.1, 38.7, 40.9, 42.7, 44.3, 48.8, 50.4, 50.8, 50.4],
+    [9.2, 13.4, 19.7, 26.4, 31.9, 35.2, 38.3, 40.2, 41.9, 43.1, 47.8, 49.9, 50.7, 50.3],
+    [11.2, 15.3, 21.0, 27.6, 32.7, 35.3, 38.4, 40.8, 42.6, 44.5, 48.6, 50.5, 50.9, 51.0],
+    [12.9, 17.1, 22.6, 28.8, 33.5, 36.0, 38.8, 41.0, 43.0, 44.6, 48.7, 50.6, 51.1, 51.0],
+    [14.6, 18.7, 24.6, 30.1, 34.2, 36.9, 39.3, 41.3, 43.2, 44.9, 48.9, 51.0, 51.3, 51.5],
+    [16.5, 20.9, 26.3, 31.3, 35.0, 37.6, 40.0, 42.0, 43.7, 45.3, 48.8, 50.9, 51.4, 51.7],
+    [20.9, 25.3, 30.0, 34.0, 37.0, 39.5, 41.9, 43.4, 45.0, 46.4, 49.3, 51.0, 51.3, 51.9],
+    [25.1, 28.9, 33.2, 36.2, 39.2, 41.2, 43.2, 44.7, 46.0, 47.3, 49.6, 51.0, 51.3, 51.6],
+    [34.0, 36.6, 39.2, 41.1, 43.2, 44.5, 46.1, 47.2, 48.0, 49.0, 50.3, 51.3, 51.3, 51.2],
+    [40.3, 41.8, 43.6, 44.9, 46.1, 47.1, 48.2, 49.2, 49.9, 50.5, 51.2, 51.3, 50.9, 50.7],
+    [44.0, 44.8, 46.0, 47.1, 48.4, 49.1, 49.9, 50.7, 51.4, 51.9, 51.6, 51.4, 50.6, 50.2],
+    [49.6, 49.7, 50.4, 51.2, 51.8, 52.2, 52.6, 52.9, 53.3, 53.8, 52.6, 51.7, 50.4, 49.6],
+    [53.9, 53.7, 54.0, 54.2, 54.4, 54.5, 54.5, 54.4, 54.4, 54.9, 53.1, 51.8, 50.1, 49.1],
+    [54.0, 53.7, 53.8, 53.7, 53.5, 53.6, 53.5, 53.3, 53.5, 53.7, 51.4, 49.8, 47.9, 46.6],
+    [52.8, 52.4, 52.6, 52.3, 52.2, 52.3, 52.0, 51.9, 51.8, 51.8, 49.5, 47.4, 45.4, 43.8],
+    [51.4, 51.2, 51.3, 51.0, 50.8, 50.7, 50.3, 49.9, 49.8, 49.7, 47.6, 45.3, 43.1, 41.4],
+    [49.6, 49.6, 49.7, 49.5, 49.5, 49.2, 48.6, 47.9, 47.4, 47.1, 45.1, 42.9, 40.8, 39.2]
+]
+
+swapTenors = [ql.Period(tenor) for tenor in swapTenors]
+optionTenors = [ql.Period(tenor) for tenor in optionTenors]
+normal_vols = [[vol / 10000 for vol in row] for row in normal_vols]
+
+calendar = ql.TARGET()
+bdc = ql.ModifiedFollowing
+dayCounter = ql.ActualActual()
+swaptionVolMatrix = ql.SwaptionVolatilityMatrix(
+    calendar, bdc,
+    optionTenors, swapTenors, ql.Matrix(normal_vols),
+    dayCounter, False, ql.Normal)
+SwaptionVolCube1
+SwaptionVolCube2
+ql.SwaptionVolCube2(atmVolStructure, optionTenors, swapTenors, strikeSpreads, volSpreads, swapIndex, shortSwapIndex, vegaWeightedSmileFit)
+optionTenors = ['1y', '2y', '3y']
+swapTenors = [ '5Y', '10Y']
+strikeSpreads = [ -0.01, 0.0, 0.01]
+volSpreads = [
+    [0.5, 0.55, 0.6],
+    [0.5, 0.55, 0.6],
+    [0.5, 0.55, 0.6],
+    [0.5, 0.55, 0.6],
+    [0.5, 0.55, 0.6],
+    [0.5, 0.55, 0.6],
+]
+
+
+optionTenors = [ql.Period(tenor) for tenor in optionTenors]
+swapTenors = [ql.Period(tenor) for tenor in swapTenors]
+volSpreads = [[ql.QuoteHandle(ql.SimpleQuote(v)) for v in row] for row in volSpreads]
+
+swapIndexBase = ql.EuriborSwapIsdaFixA(ql.Period(1, ql.Years), e6m_yts, ois_yts)
+shortSwapIndexBase = ql.EuriborSwapIsdaFixA(ql.Period(1, ql.Years), e6m_yts, ois_yts)
+vegaWeightedSmileFit = False
+
+volCube = ql.SwaptionVolatilityStructureHandle(
+    ql.SwaptionVolCube2(
+        ql.SwaptionVolatilityStructureHandle(swaptionVolMatrix),
+        optionTenors,
+        swapTenors,
+        strikeSpreads,
+        volSpreads,
+        swapIndexBase,
+        shortSwapIndexBase,
+        vegaWeightedSmileFit)
+)
+volCube.enableExtrapolation()
+SwaptionVolatilityStructureHandle
+ql.SwaptionVolatilityStructureHandle(swaptionVolStructure)
+swaptionVolHandle = ql.SwaptionVolatilityStructureHandle(swaptionVolMatrix)
+RelinkableSwaptionVolatilityStructureHandle
+ql.RelinkableSwaptionVolatilityStructureHandle()
+handle = ql.RelinkableSwaptionVolatilityStructureHandle()
+handle.linkTo(swaptionVolMatrix)
+SABR
+SabrSmileSection
+ql.SabrSmileSection(date, fwd, [alpha, beta, nu, rho, ]dayCounter, Real)
+ql.SabrSmileSection(time, fwd, [alpha, beta, nu, rho, ]dayCounter, Real)
+alpha = 1.63
+beta = 0.6
+nu = 3.3
+rho = 0.00002
+
+ql.SabrSmileSection(17/365, 120, [alpha, beta, nu, rho])
+sabrVolatility
+ql.sabrVolatility(strike, forward, expiryTime, alpha, beta, nu, rho)
+alpha = 1.63
+beta = 0.6
+nu = 3.3
+rho = 0.00002
+ql.sabrVolatility(106, 120, 17/365, alpha, beta, nu, rho)
+shiftedSabrVolatility
+ql.shiftedSabrVolatility(strike, forward, expiryTime, alpha, beta, nu, rho, shift)
+alpha = 1.63
+beta = 0.6
+nu = 3.3
+rho = 0.00002
+shift = 50
+
+ql.shiftedSabrVolatility(106, 120, 17/365, alpha, beta, nu, rho, shift)
+sabrFlochKennedyVolatility
+ql.sabrFlochKennedyVolatility(strike, forward, expiryTime, alpha, beta, nu, rho)
+alpha = 0.01
+beta = 0.01
+nu = 0.01
+rho = 0.01
+
+ql.sabrFlochKennedyVolatility(0.01,0.01, 5, alpha, beta, nu, rho)
+Credit Term Structures
+FlatHazardRate
+Flat hazard-rate curve.
+
+ql.FlatHazardRate(settlementDays, calendar, Quote, dayCounter)
+ql.FlatHazardRate(settelementDate, Quote, dayCounter)
+pd_curve = ql.FlatHazardRate(2, ql.TARGET(), ql.QuoteHandle(ql.SimpleQuote(0.05)), ql.Actual360())
+pd_curve = ql.FlatHazardRate(ql.Date().todaysDate(), ql.QuoteHandle(ql.SimpleQuote(0.05)), ql.Actual360())
+PiecewiseFlatHazardRate
+Piecewise default-probability term structure.
+
+ql.PiecewiseFlatHazardRate(settlementDate, helpers, dayCounter)
+recoveryRate = 0.4
+settlementDate = ql.Date().todaysDate()
+yts = ql.FlatForward(2, ql.TARGET(), 0.05, ql.Actual360())
+
+CDS_tenors = [ql.Period(6, ql.Months), ql.Period(1, ql.Years), ql.Period(2, ql.Years), ql.Period(3, ql.Years), \
+    ql.Period(4, ql.Years), ql.Period(5, ql.Years), ql.Period(7, ql.Years), ql.Period(10, ql.Years), ql.Period(50, ql.Years)]
+CDS_ctpy = [26.65, 37.22, 53.17, 65.79, 77.39, 91.14, 116.84, 136.67, 136.67]
+
+CDSHelpers_ctpy = [ql.SpreadCdsHelper((CDS_spread / 10000.0), CDS_tenor, 0, ql.TARGET(), ql.Quarterly, ql.Following, \
+    ql.DateGeneration.TwentiethIMM, ql.Actual360(), recoveryRate, ql.YieldTermStructureHandle(yts))
+for CDS_spread, CDS_tenor in zip(CDS_ctpy, CDS_tenors)]
+
+pd_curve = ql.PiecewiseFlatHazardRate(settlementDate, CDSHelpers_ctpy, ql.Thirty360())
+SurvivalProbabilityCurve
+ql.SurvivalProbabilityCurve(dates, survivalProbabilities, dayCounter, calendar)
+today = ql.Date().todaysDate()
+dates = [today + ql.Period(n , ql.Years) for n in range(11)]
+sp = [1.0, 0.9941, 0.9826, 0.9674, 0.9488, 0.9246, 0.8945, 0.8645, 0.83484, 0.80614, 0.7784]
+crv = ql.SurvivalProbabilityCurve(dates, sp, ql.Actual360(), ql.TARGET())
+crv.enableExtrapolation()
+Inflation Term Structures
+ZeroInflationCurve
+ql.PiecewiseZeroInflation(referenceDate, calendar, dayCounter, observationLag, frequency, bool indexIsInterpolated, baseZeroRate, nominalTS, helpers, accuracy=1.0e-12, interpolator=ql.Linear())
+
+Pricing Caps
+In this example we will explore how to: 1. Price caps by settings a constant volatility and only using a single curve for discounting and forecasting. 2. Price caps by using two curves, one for forecasting and one for discounting. 3. Price caps by having an input volatility surface.
+
+import QuantLib as ql
+import pandas as pd
+We initialize by setting the valuation date and defining our forecasting and discounting curve to be used in pricing.
+
+# Begin by setting the valuation date of which the cap and the floor should be priced at
+ql.Settings.instance().evaluationDate = ql.Date(1, 1, 2022)
+# Then we initialize the curve we want to use for discounting and forecasting
+discount_factors = [1, 0.965, 0.94]  # discount factors
+dates = [
+    ql.Date(1, 1, 2022),
+    ql.Date(1, 1, 2023),
+    ql.Date(1, 1, 2024),
+]  # maturity dates of the discount factors
+day_counter = ql.Actual360()
+# Note that we will not strip a curve here, but simply use the discount factors and the dates defined above
+# By default QuantLib DiscountCurve will log linearly interpolate between the points.
+discount_curve = ql.DiscountCurve(dates, discount_factors, day_counter)
+# The curve will note be linked in case we want to update the quotes later on
+discount_handle = ql.YieldTermStructureHandle(discount_curve)
+
+The next step involves creating an schedule of dates for which the optionlets of the caps will mature at.
+
+start_date = ql.Date(1, 1, 2022)
+end_date = start_date + ql.Period(12, ql.Months)
+
+# We define the schedule of the cap and floor
+schedule = ql.Schedule(
+    start_date,                 # Start date of payments
+    end_date,                   # End date of payments
+    ql.Period(3, ql.Months),    # frequency of payments
+    ql.Sweden(),                # Calendar for adjusting for holidays
+    ql.ModifiedFollowing,       # Business convention for adjusting for holidays
+    ql.ModifiedFollowing,       # Business convention for adjusting for holidays
+    ql.DateGeneration.Backward, # Date generation rule for generating the schedule
+    False,                      # End of month rule
+)
+
+# Create a custom index to track the payments correctly, specifically fixing days.
+custom_discount_index= ql.IborIndex(
+    "MyIndex",
+    ql.Period("3m"),
+    0,
+    ql.SEKCurrency(),
+    ql.Sweden(),
+    ql.ModifiedFollowing,
+    False,
+    ql.Actual360(),
+    discount_handle,
+)
+
+The last step is to define the pricing engine to use for pricing. We can choose between:
+
+BlackCapFloorEngine
+
+BachelierEngine
+
+AnalyticCapFloorEngine
+
+TreeCapFloorEngine
+
+In this example we will precede with BlackCapFloorEngine.
+
+# As you have noted by now, the pricing of caps and floors involves creating a floating leg
+ibor_leg_discount = ql.IborLeg([1e6], schedule, custom_discount_index)
+strike = [0.025]
+cap_discount = ql.Cap(ibor_leg_discount, strike)
+
+# The final step is to define a volatility surface, we will use a constant volatility for simplicity
+volatility = ql.QuoteHandle(ql.SimpleQuote(0.5))
+
+# Input our discounting and forecasting curve together with our volatility surface to the engine
+engine = ql.BlackCapFloorEngine(discount_handle, volatility)
+cap_discount.setPricingEngine(engine)
+print(cap_discount.NPV())
+10831.583434218297
+At last we want to show our results of the seperate optionlets.
+
+schedule_dates = schedule.dates()
+
+display_result = lambda _ : pd.DataFrame({
+    'price': _.optionletsPrice(),
+    'discount_factor': _.optionletsDiscountFactor(),
+    'cap_rate': _.capRates(),
+    'atm_forward': _.optionletsAtmForward(),
+    'std_dev': _.optionletsStdDev(),
+    'accrual_start': schedule_dates[:-1],
+    'accrual_end' : schedule_dates[1:]
+})
+
+display_result(cap_discount)
+price	discount_factor	cap_rate	atm_forward	std_dev	accrual_start	accrual_end
+0	2493.450264	0.991254	0.025	0.035290	0.037012	January 3rd, 2022	April 1st, 2022
+1	2625.359083	0.982488	0.025	0.035296	0.248282	April 1st, 2022	July 1st, 2022
+2	2846.309041	0.973515	0.025	0.035301	0.352097	July 1st, 2022	October 3rd, 2022
+3	2866.465047	0.964931	0.025	0.035193	0.434000	October 3rd, 2022	January 2nd, 2023
+Considering that we have used only one curve as discounting and forecasting, we will now add a second curve for forecasting.
+
+ql.Settings.instance().evaluationDate = ql.Date(1, 1, 2022)
+
+# Similiar to the discount curve we declared previously
+forward_rates = [0.04, 0.05, 0.06]
+forward_curve = ql.ForwardCurve(dates, forward_rates, day_counter)
+forward_handle = ql.YieldTermStructureHandle(forward_curve)
+# Create a new index that uses the forward curve for forecasting
+custom_forward_index= ql.IborIndex(
+    "MyIndex",
+    ql.Period("3m"),
+    0,
+    ql.SEKCurrency(),
+    ql.Sweden(),
+    ql.ModifiedFollowing,
+    False,
+    ql.Actual360(),
+    forward_handle, # Previously was set to discount_handle
+)
+# Define a new ibor_leg & cap that uses the new index with forward estimation
+ibor_leg_forward = ql.IborLeg([1e6], schedule, custom_forward_index)
+cap_forward = ql.Cap(ibor_leg_forward, strike)
+
+# Input our discounting and forecasting curve together with our volatility surface to the engine
+engine_forward = ql.BlackCapFloorEngine(discount_handle, volatility)
+cap_forward.setPricingEngine(engine_forward)
+print(cap_forward.NPV())
+25171.79621353972
+schedule_dates = schedule.dates()
+display_result(cap_forward)
+price	discount_factor	cap_rate	atm_forward	std_dev	accrual_start	accrual_end
+0	6132.002083	0.991254	0.025	0.050307	0.037012	January 3rd, 2022	April 1st, 2022
+1	6289.142138	0.982488	0.025	0.050317	0.248282	April 1st, 2022	July 1st, 2022
+2	6465.774497	0.973515	0.025	0.050328	0.352097	July 1st, 2022	October 3rd, 2022
+3	6284.877495	0.964931	0.025	0.050429	0.434000	October 3rd, 2022	January 2nd, 2023
+The last step is to consider to have a full volatility surface instead of a constant one.
+
+# Set the settlement day of the volatility surface
+settlementDays = 0
+
+# Define the expiries for the volatility surface
+expiries = [ql.Period("3M"), ql.Period("6M"), ql.Period("9M"), ql.Period("1Y")]
+
+# Define the strikes for the volatility surface
+strikes = [0.010, 0.025, 0.03]
+
+# Define the market quotes for the volatility surface
+black_volatility = [[0.98, 0.792, 0.6873], [0.9301, 0.7401, 0.6403], [0.7926, 0.6424, 0.5602], [0.7126, 0.6024, 0.4902]]
+
+# Create a new volatility surface
+volatility_surface = ql.CapFloorTermVolSurface(
+    settlementDays,
+    ql.Sweden(),
+    ql.ModifiedFollowing,
+    expiries,
+    strikes,
+    black_volatility,
+    day_counter,
+)
+# Strip the volatility surface for optionlets (caplets) as the input is based on caps
+optionlet_surf = ql.OptionletStripper1(volatility_surface, custom_forward_index)
+
+# Call strippedOptionletAdapter to create a handle for the volatility surface
+ovs_handle = ql.OptionletVolatilityStructureHandle(
+    ql.StrippedOptionletAdapter(optionlet_surf)
+)
+
+cap_volatility = ql.Cap(ibor_leg_forward, strike)
+# Input our discounting and forecasting curve together with our volatility surface to the engine
+engine_volatility = ql.BlackCapFloorEngine(discount_handle, ovs_handle)
+cap_volatility.setPricingEngine(engine_volatility)
+print(cap_volatility.NPV())
+25340.288918668186
+display_result(cap_volatility)
+price	discount_factor	cap_rate	atm_forward	std_dev	accrual_start	accrual_end
+0	6132.002083	0.991254	0.025	0.050307	0.000000	January 3rd, 2022	April 1st, 2022
+1	6325.268247	0.982488	0.025	0.050317	0.372127	April 1st, 2022	July 1st, 2022
+2	6526.008974	0.973515	0.025	0.050328	0.434983	July 1st, 2022	October 3rd, 2022
+3	6357.009614	0.964931	0.025	0.050429	0.500385	October 3rd, 2022	January 2nd, 2023
+
+Gearing in swaps
+import QuantLib as ql
+Create a relinkable yield term structure handle and build a curve
+
+import QuantLib as ql
+import pandas as pd
+
+yts = ql.YieldTermStructureHandle(ql.FlatForward(2, ql.TARGET(), 0.05, ql.Actual360()))
+engine = ql.DiscountingSwapEngine(yts)
+index = ql.USDLibor(ql.Period('6M'), yts)
+
+schedule = ql.MakeSchedule(ql.Date(15,6,2021), ql.Date(15,6,2023), ql.Period('6M'))
+nominal = [10e6]
+
+
+fixedLeg = ql.FixedRateLeg(schedule, index.dayCounter(), nominal, [0.05])
+floatingLeg = ql.IborLeg(nominal, schedule, index)
+swap = ql.Swap(fixedLeg, floatingLeg)
+swap.setPricingEngine(engine)
+
+print(f"Floating leg NPV: {swap.legNPV(1):,.2f}\n")
+pd.DataFrame([{
+    'fixingDate': cf.fixingDate().ISO(),
+    'accrualStart': cf.accrualStartDate().ISO(),
+    'accrualEnd': cf.accrualEndDate().ISO(),
+    "paymentDate": cf.date().ISO(),
+    'gearing': cf.gearing(),
+    'forward': cf.indexFixing(),
+    'rate': cf.rate(),
+    "amount": cf.amount()
+} for cf in map(ql.as_floating_rate_coupon, swap.leg(1))])
+Floating leg NPV: 933,741.01
+
+fixingDate	accrualStart	accrualEnd	paymentDate	gearing	forward	rate	amount
+0	2021-06-11	2021-06-15	2021-12-15	2021-12-15	1.0	0.050641	0.050641	257424.241734
+1	2021-12-13	2021-12-15	2022-06-15	2022-06-15	1.0	0.050637	0.050637	255999.698407
+2	2022-06-13	2022-06-15	2022-12-15	2022-12-15	1.0	0.050641	0.050641	257424.241734
+3	2022-12-13	2022-12-15	2023-06-15	2023-06-15	1.0	0.050637	0.050637	255999.698407
+floatingLeg = ql.IborLeg(nominal, schedule, index, gearings=[0.7])
+swap = ql.Swap(fixedLeg, floatingLeg)
+swap.setPricingEngine(engine)
+
+print(f"Floating leg NPV: {swap.legNPV(1):,.2f}\n")
+pd.DataFrame([{
+    'fixingDate': cf.fixingDate().ISO(),
+    'accrualStart': cf.accrualStartDate().ISO(),
+    'accrualEnd': cf.accrualEndDate().ISO(),
+    "paymentDate": cf.date().ISO(),
+    'gearing': cf.gearing(),
+    'forward': cf.indexFixing(),
+    'rate': cf.rate(),
+    "amount": cf.amount()
+} for cf in map(ql.as_floating_rate_coupon, swap.leg(1))])
+Floating leg NPV: 653,618.71
+
+fixingDate	accrualStart	accrualEnd	paymentDate	gearing	forward	rate	amount
+0	2021-06-11	2021-06-15	2021-12-15	2021-12-15	0.7	0.050641	0.035449	180196.969214
+1	2021-12-13	2021-12-15	2022-06-15	2022-06-15	0.7	0.050637	0.035446	179199.788885
+2	2022-06-13	2022-06-15	2022-12-15	2022-12-15	0.7	0.050641	0.035449	180196.969214
+3	2022-12-13	2022-12-15	2023-06-15	2023-06-15	0.7	0.050637	0.035446	179199.788885
+swapType = ql.VanillaSwap.Payer
+numDates = (len(schedule)-1)
+gearing = [0.7] * numDates
+spread = [0.0] * numDates
+fixedRateArray = [0.05] * numDates
+nominalArray = nominal * numDates
+nsSwap = ql.NonstandardSwap(
+    swapType, nominalArray, nominalArray,
+    schedule, fixedRateArray, index.dayCounter(),
+    schedule, index, gearing, spread, index.dayCounter())
+
+nsSwap.setPricingEngine(engine)
+print(f"Floating leg NPV: {nsSwap.legNPV(1):,.2f}\n")
+pd.DataFrame([{
+    'fixingDate': cf.fixingDate().ISO(),
+    'accrualStart': cf.accrualStartDate().ISO(),
+    'accrualEnd': cf.accrualEndDate().ISO(),
+    "paymentDate": cf.date().ISO(),
+    'gearing': cf.gearing(),
+    'forward': cf.indexFixing(),
+    'rate': cf.rate(),
+    "amount": cf.amount()
+} for cf in map(ql.as_floating_rate_coupon, swap.leg(1))])
+Floating leg NPV: 653,618.71
+
+fixingDate	accrualStart	accrualEnd	paymentDate	gearing	forward	rate	amount
+0	2021-06-11	2021-06-15	2021-12-15	2021-12-15	1.0	0.050641	0.050641	180196.969214
+1	2021-12-13	2021-12-15	2022-06-15	2022-06-15	1.0	0.050637	0.050637	179199.788885
+2	2022-06-13	2022-06-15	2022-12-15	2022-12-15	1.0	0.050641	0.050641	180196.969214
+3	2022-12-13	2022-12-15	2023-06-15	2023-06-15	1.0	0.050637	0.050637	179199.788885
+
+Vanilla Swap
+import QuantLib as ql
+Create a relinkable yield term structure handle and build a curve
+
+yts = ql.RelinkableYieldTermStructureHandle()
+
+instruments = [
+    ('depo', '6M', 0.025),
+    ('swap', '1Y', 0.031),
+    ('swap', '2Y', 0.032),
+    ('swap', '3Y', 0.035)
+]
+
+helpers = ql.RateHelperVector()
+index = ql.Euribor6M(yts)
+for instrument, tenor, rate in instruments:
+    if instrument == 'depo':
+        helpers.append( ql.DepositRateHelper(rate, index) )
+    if instrument == 'fra':
+        monthsToStart = ql.Period(tenor).length()
+        helpers.append( ql.FraRateHelper(rate, monthsToStart, index) )
+    if instrument == 'swap':
+        swapIndex = ql.EuriborSwapIsdaFixA(ql.Period(tenor))
+        helpers.append( ql.SwapRateHelper(rate, swapIndex))
+curve = ql.PiecewiseLogCubicDiscount(2, ql.TARGET(), helpers, ql.Actual365Fixed())
+
+Link the built curve to the relinkable yield term structure handle and build a swap pricing engine
+
+yts.linkTo(curve)
+engine = ql.DiscountingSwapEngine(yts)
+
+Build a vanilla swap and provide a pricing engine
+
+tenor = ql.Period('2y')
+fixedRate = 0.05
+forwardStart = ql.Period("2D")
+
+swap = ql.MakeVanillaSwap(tenor, index, fixedRate, forwardStart, nominal=10e6, pricingEngine=engine)
+
+Get the fair rate and NPV
+
+fairRate = swap.fairRate()
+npv = swap.NPV()
+
+print(f"Fair swap rate: {fairRate:.3%}")
+print(f"Swap NPV: {npv:,.3f}")
+Fair swap rate: 3.205%
+Swap NPV: -343,527.872
+import pandas as pd
+pd.options.display.float_format = "{:,.2f}".format
+
+cashflows = pd.DataFrame({
+    'date': cf.date(),
+    'amount': cf.amount()
+    } for cf in swap.leg(1))
+display(cashflows)
+date	amount
+0	January 19th, 2024	128,288.65
+1	July 19th, 2024	180,166.24
+2	January 20th, 2025	166,690.49
+3	July 21st, 2025	162,876.45
+cashflows = pd.DataFrame({
+    'nominal': cf.nominal(),
+    'accrualStartDate': cf.accrualStartDate().ISO(),
+    'accrualEndDate': cf.accrualEndDate().ISO(),
+    'rate': cf.rate(),
+    'amount': cf.amount()
+    } for cf in map(ql.as_coupon, swap.leg(1)))
+display(cashflows)
+nominal	accrualStartDate	accrualEndDate	rate	amount
+0	10,000,000.00	2023-07-19	2024-01-19	0.03	128,288.65
+1	10,000,000.00	2024-01-19	2024-07-19	0.04	180,166.24
+2	10,000,000.00	2024-07-19	2025-01-20	0.03	166,690.49
+3	10,000,000.00	2025-01-20	2025-07-21	0.03	162,876.45
+
+
+Yield Curve
+import QuantLib as ql
+import matplotlib.pyplot as plt
+dates = [ql.Date(15,6,2020), ql.Date(15,6,2021), ql.Date(15,6,2022)]
+zeros = [0.01, 0.02, 0.03]
+curve = ql.ZeroCurve(dates, zeros, ql.ActualActual(), ql.TARGET())
+curve.nodes()
+((Date(15,6,2020), 0.01), (Date(15,6,2021), 0.02), (Date(15,6,2022), 0.03))
+plt.plot(*list(zip(*[(dt.to_date(), rate) for dt,rate in curve.nodes()])), marker='o')
+[<matplotlib.lines.Line2D at 0x7f6933e5ddf0>]
+../../_images/examples_fixedincome_yieldcurve_4_1.svg
+
+
+Stochastic Processes
+GeometricBrownianMotionProcess
+ql.GeometricBrownianMotionProcess(initialValue, mu, sigma)
+initialValue = 100
+mu = 0.01
+sigma = 0.2
+process = ql.GeometricBrownianMotionProcess(initialValue, mu, sigma)
+BlackScholesProcess
+ql.BlackScholesProcess(initialValue, riskFreeTS, volTS)
+initialValue = ql.QuoteHandle(ql.SimpleQuote(100))
+sigma = 0.2
+today = ql.Date().todaysDate()
+riskFreeTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.05, ql.Actual365Fixed()))
+volTS = ql.BlackVolTermStructureHandle(ql.BlackConstantVol(today, ql.NullCalendar(), sigma, ql.Actual365Fixed()))
+process = ql.BlackScholesProcess(initialValue, riskFreeTS, volTS)
+BlackScholesMertonProcess
+ql.BlackScholesMertonProcess(initialValue, dividendTS, riskFreeTS, volTS)
+initialValue = ql.QuoteHandle(ql.SimpleQuote(100))
+sigma = 0.2
+today = ql.Date().todaysDate()
+riskFreeTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.05, ql.Actual365Fixed()))
+dividendTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.01, ql.Actual365Fixed()))
+volTS = ql.BlackVolTermStructureHandle(ql.BlackConstantVol(today, ql.NullCalendar(), sigma, ql.Actual365Fixed()))
+process = ql.BlackScholesMertonProcess(initialValue, dividendTS, riskFreeTS, volTS)
+GeneralizedBlackScholesProcess
+ql.GeneralizedBlackScholesProcess(initialValue, dividendTS, riskFreeTS, volTS)
+initialValue = ql.QuoteHandle(ql.SimpleQuote(100))
+sigma = 0.2
+today = ql.Date().todaysDate()
+riskFreeTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.05, ql.Actual365Fixed()))
+dividendTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.01, ql.Actual365Fixed()))
+volTS = ql.BlackVolTermStructureHandle(ql.BlackConstantVol(today, ql.NullCalendar(), sigma, ql.Actual365Fixed()))
+process = ql.GeneralizedBlackScholesProcess(initialValue, dividendTS, riskFreeTS, volTS)
+ExtendedOrnsteinUhlenbeckProcess
+ql.ExtendedOrnsteinUhlenbeckProcess(speed, sigma, x0)
+x0 = 0.0
+speed = 1.0
+volatility = 0.1
+process = ql.ExtendedOrnsteinUhlenbeckProcess(speed, volatility, x0, lambda x: x0)
+ExtOUWithJumpsProcess
+x0 = 0.0
+x1 = 0.0
+beta = 4.0
+eta = 4.0
+jumpIntensity = 1.0
+speed = 1.0
+volatility = 0.1
+ouProcess = ql.ExtendedOrnsteinUhlenbeckProcess(speed, volatility, x0, lambda x: x0)
+process = ql.ExtOUWithJumpsProcess(ouProcess, x1, beta, jumpIntensity, eta)
+BlackProcess
+ql.BlackProcess(initialValue, riskFreeTS, volTS)
+initialValue = ql.QuoteHandle(ql.SimpleQuote(100))
+sigma = 0.2
+today = ql.Date().todaysDate()
+riskFreeTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.05, ql.Actual365Fixed()))
+volTS = ql.BlackVolTermStructureHandle(ql.BlackConstantVol(today, ql.NullCalendar(), sigma, ql.Actual365Fixed()))
+process = ql.BlackProcess(initialValue, riskFreeTS, volTS)
+Merton76Process
+initialValue = ql.QuoteHandle(ql.SimpleQuote(100))
+sigma = 0.2
+today = ql.Date().todaysDate()
+dividendTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.01, ql.Actual365Fixed()))
+
+riskFreeTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.05, ql.Actual365Fixed()))
+volTS = ql.BlackVolTermStructureHandle(ql.BlackConstantVol(today, ql.NullCalendar(), sigma, ql.Actual365Fixed()))
+process = ql.BlackProcess(initialValue, riskFreeTS, volTS)
+
+jumpIntensity = ql.QuoteHandle(ql.SimpleQuote(1.0))
+jumpVolatility = ql.QuoteHandle(ql.SimpleQuote(sigma * np.sqrt(0.25 / jumpIntensity.value())))
+meanLogJump = ql.QuoteHandle(ql.SimpleQuote(-jumpVolatility.value()*jumpVolatility.value()))
+
+process = ql.Merton76Process(initialValue, dividendTS, riskFreeTS, volTS, jumpIntensity, meanLogJump, jumpVolatility)
+VarianceGammaProcess
+initialValue = ql.QuoteHandle(ql.SimpleQuote(100))
+riskFreeTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.05, ql.Actual365Fixed()))
+dividendTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.01, ql.Actual365Fixed()))
+
+sigma = 0.2
+nu = 1
+theta = 1
+process = ql.VarianceGammaProcess(initialValue, dividendTS, riskFreeTS, sigma, nu, theta)
+GarmanKohlagenProcess
+ql.GarmanKohlagenProcess(initialValue, foreignRiskFreeTS, domesticRiskFreeTS, volTS)
+initialValue = ql.QuoteHandle(ql.SimpleQuote(100))
+domesticRiskFreeTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.03, ql.Actual365Fixed()))
+foreignRiskFreeTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.01, ql.Actual365Fixed()))
+volTS = ql.BlackVolTermStructureHandle(ql.BlackConstantVol(today, ql.NullCalendar(), sigma, ql.Actual365Fixed()))
+process = ql.GarmanKohlagenProcess(initialValue, foreignRiskFreeTS, domesticRiskFreeTS, volTS)
+HestonProcess
+ql.HestonProcess(riskFreeTS, dividendTS, initialValue, v0, kappa, theta, sigma, rho)
+today = ql.Date().todaysDate()
+riskFreeTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.05, ql.Actual365Fixed()))
+dividendTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.01, ql.Actual365Fixed()))
+
+initialValue = ql.QuoteHandle(ql.SimpleQuote(100))
+v0 = 0.005
+kappa = 0.8
+theta = 0.008
+rho = 0.2
+sigma = 0.1
+
+process = ql.HestonProcess(riskFreeTS, dividendTS, initialValue, v0, kappa, theta, sigma, rho)
+HestonSLVProcess
+ql.HestonSLVProcess(hestonProcess, leverageFct)
+today = ql.Date().todaysDate()
+endDate = today + ql.Period("2Y")
+
+# Set up a Heston process
+riskFreeTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.05, ql.Actual365Fixed()))
+dividendTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.01, ql.Actual365Fixed()))
+
+initialValue = ql.QuoteHandle(ql.SimpleQuote(100))
+v0 = 0.005
+kappa = 0.8
+theta = 0.008
+rho = 0.2
+sigma = 0.1
+
+hestonProcess = ql.HestonProcess(riskFreeTS, dividendTS, initialValue, v0, kappa, theta, sigma, rho)
+
+# Set up a local vol surface
+periods = [ql.Period("3M"), ql.Period("6M"), ql.Period("12M"), ql.Period("24M")]
+expirationDates = [today + period for period in periods]
+strikes = [90, 95, 100, 105, 110]
+
+data = [[0.075, 0.076, 0.078, 0.080], [0.071, 0.072, 0.074, 0.078], [0.071, 0.072, 0.073, 0.077], [0.075, 0.075, 0.075, 0.077], [0.081, 0.080, 0.078, 0.078]]
+impliedVols = ql.Matrix(data)
+
+localVolSurface = ql.BlackVarianceSurface(today, ql.NullCalendar(), expirationDates, strikes, impliedVols, ql.Actual365Fixed())
+localVolHandle = ql.BlackVolTermStructureHandle(localVolSurface)
+localVol = ql.LocalVolSurface(localVolHandle, riskFreeTS, dividendTS, initialValue)
+localVol.enableExtrapolation()
+
+# Calibrate Leverage Function to the Local Vol and Heston Model via Monte-Carlo
+timeStepsPerYear = 365
+nBins = 201
+calibrationPaths = 2**15
+mandatoryDates = []
+mixingFactor = 0.9
+
+generatorFactory = ql.MTBrownianGeneratorFactory()
+
+hestonModel = ql.HestonModel(hestonProcess)
+stochLocalMcModel = ql.HestonSLVMCModel(localVol, hestonModel, generatorFactory, endDate, timeStepsPerYear, nBins, calibrationPaths, mandatoryDates, mixingFactor)
+leverageFct = stochLocalMcModel.leverageFunction()
+
+process = ql.HestonSLVProcess(hestonProcess, leverageFct, mixingFactor)
+BatesProcess
+HullWhiteProcess
+ql.HullWhiteProcess(riskFreeTS, a, sigma)
+riskFreeTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.05, ql.Actual365Fixed()))
+a = 0.001
+sigma = 0.1
+process = ql.HullWhiteProcess(riskFreeTS, a, sigma)
+HullWhiteForwardProcess
+ql.HullWhiteForwardProcess(riskFreeTS, a, sigma)
+riskFreeTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.05, ql.Actual365Fixed()))
+a = 0.001
+sigma = 0.1
+process = ql.HullWhiteForwardProcess(riskFreeTS, a, sigma)
+GSR Process
+today = ql.Date().todaysDate()
+dates = [ql.TARGET().advance(today, ql.Period(i, ql.Days)) for i in range(1,10)]
+times = [i for i in range(1,10)]
+sigmas = [0.01 for i in range(0, len(dates)+1)]
+reversion = 0.01
+reversions = [reversion]
+process = ql.GsrProcess(times, sigmas, reversions)
+G2Process
+G2ForwardProcess
+Multiple Processes
+ql.StochasticProcessArray(processes, correlationMatrix)
+underlyingSpots = [100., 100., 100., 100., 100.]
+underlyingVols = [0.1, 0.12, 0.13, 0.09, 0.11]
+underlyingCorrMatrix = [[1, 0.1, -0.1, 0, 0], [0.1, 1, 0, 0, 0.2], [-0.1, 0, 1, 0, 0], [0, 0, 0, 1, 0.15], [0, 0.2, 0, 0.15, 1]]
+
+today = ql.Date().todaysDate()
+dayCount = ql.Actual365Fixed()
+calendar = ql.NullCalendar()
+
+riskFreeTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.0, dayCount))
+dividendTS = ql.YieldTermStructureHandle(ql.FlatForward(today, 0.0, dayCount))
+
+processes = [ql.BlackScholesMertonProcess(ql.QuoteHandle(ql.SimpleQuote(x)),
+                                          dividendTS,
+                                          riskFreeTS,
+                                          ql.BlackVolTermStructureHandle(ql.BlackConstantVol(today, calendar, y, dayCount)))
+             for x, y in zip(underlyingSpots, underlyingVols)]
+
+multiProcess = ql.StochasticProcessArray(processes, underlyingCorrMatrix)
+
+
+CashFlows, Legs and Interest Rates
+Interest Rates
+Concrete interest rate class
+
+ql.InterestRate(rate, dayCount, compounding, frequency)
+rate = ql.InterestRate(0.05, ql.Actual360(), ql.Compounded, ql.Annual)
+Here are some common member functions:
+
+rate() : a floating point number that returns the value of the rate of return;
+
+dayCounter() : DayCounter object, which returns the member variable that controls the day calculation rule;
+
+compounding() : an integer that returns the interest rate method;
+
+frequency() : Integer, returns the frequency of interest payments;
+
+discountFactor(d1, d2) : float, d1 and d2 are both Date objects ( d1 < d2 ), returning the discount factor size from d1 to d2;
+
+compoundFactor(d1, d2) : float, d1 and d2 are both Date objects ( d1 < d2 ), returning the size of the interest factor from d1 to d2;
+
+equivalentRate(resultDC, comp, freq, d1, d2) : The InterestRate object returns an InterestRate object equivalent to the current object. The configuration parameters of the object include resultDC , comp , freq :
+
+Both d1 and d2 are Date objects ( d1 < d2 )
+
+resultDC : DayCounter object, configure the number of days calculation rules;
+
+comp : integer, configuration interest rate, the value range is some reserved variables of quantlib-python;
+
+freq : integer, configuration payoff frequency, the range of values ​​is some reserved variables of quantlib-python.
+
+In some cases, it is necessary to recalculate the rate of return based on the size of the interest factor. The InterestRate class provides the function impliedRate implement this function:
+
+impliedRate(compound, resultDC, comp, freq, d1, d2) : The InterestRate object returns the inverse calculated InterestRate object whose configuration parameters include resultDC , comp , freq :
+
+Both d1 and d2 are Date objects ( d1 < d2 )
+
+resultDC : DayCounter object, configure the number of days calculation rules;
+
+comp : integer, configuration interest rate, the value range is some reserved variables of quantlib-python;
+
+freq : integer, configuration payoff frequency, the range of values ​​is some reserved variables of quantlib-python.
+
+print("Rate: ", rate.rate())
+print("DayCount: ", rate.dayCounter())
+print("DiscountFactor: ", rate.discountFactor(1))
+print("DiscountFactor: ", rate.discountFactor(ql.Date(15,6,2020), ql.Date(15,6,2021)))
+print("CompoundFactor: ", rate.compoundFactor(ql.Date(15,6,2020), ql.Date(15,6,2021)))
+print("EquivalentRate: ", rate.equivalentRate(ql.Actual360(), ql.Compounded, ql.Semiannual, ql.Date(15,6,2020), ql.Date(15,6,2021)))
+
+factor = rate.compoundFactor(ql.Date(15,6,2020), ql.Date(15,6,2021))
+print("ImpliedRate: ", rate.impliedRate(factor, ql.Actual360(), ql.Continuous, ql.Annual, ql.Date(15,6,2020), ql.Date(15,6,2021)))
+CashFlows
+SimpleCashFlow
+ql.SimpleCashFlow(amount, date)
+amount = 105
+date = ql.Date(15,6,2020)
+cf = ql.SimpleCashFlow(amount, date)
+Redemption
+ql.Redemption(amount, date)
+amount = 100
+date = ql.Date(15,6,2020)
+redemption = ql.Redemption(amount, date)
+AmortizingPayment
+ql.AmortizingPayment(amount, date)
+amount = 100
+date = ql.Date(15,6,2020)
+ql.AmortizingPayment(amount, date)
+Coupons
+FixedRateCoupon
+ql.FixedRateCoupon(paymentDate, nominal, rate, dayCounter, startDate, endDate)
+amount = 105
+nominal = 100.
+paymentDate = ql.Date(15,6,2020)
+startDate = ql.Date(15,12,2019)
+rate = .05
+dayCounter = ql.Actual360()
+coupon = ql.FixedRateCoupon(endDate, nominal, rate, dayCounter, startDate, endDate)
+IborCoupon
+ql.IborCoupon(paymentDate, nominal, startDate, endDate, fixingDays, index)
+nominal = 100.
+startDate = ql.Date(15,12,2020)
+endDate = ql.Date(15,6,2021)
+rate = .05
+dayCounter = ql.Actual360()
+index = ql.Euribor6M()
+coupon = ql.IborCoupon(endDate, nominal, startDate, endDate, 2, index)
+OvernightIndexedCoupon
+ql.OvernightIndexedCoupon(paymentDate, nominal, startDate, endDate, overnightIndex, gearing=1.0, spread=0.0, refPeriodStart=ql.Date(), refPeriodEnd=ql.Date(), dayCounter=ql.DayCounter(), telescopicValueDates=False)
+paymentDate = ql.Date(15, 9, 2020)
+nominal = 100
+startDate = ql.Date(15, 6, 2002)
+endDate = ql.Date(15,9,2020)
+overnightIndex = ql.Eonia()
+ql.OvernightIndexedCoupon(paymentDate, nominal, startDate, endDate, overnightIndex)
+CappedFlooredCoupon
+Capped and/or floored floating-rate coupon
+
+ql.CappedFlooredCoupon(FloatingRateCoupon, cap, floor)
+CappedFlooredIborCoupon
+CmsCoupon
+ql.CmsCoupon(paymentDate, nominal, startDate, endDate, fixingDays, swapIndex)
+nominal = 100.
+startDate = ql.Date(15,12,2020)
+endDate = ql.Date(15,6,2021)
+rate = .05
+dayCounter = ql.Actual360()
+index = ql.Euribor6M()
+fixingDays = 2
+swapIndex = ql.EuriborSwapIsdaFixA(ql.Period("2Y"))
+cms = ql.CmsCoupon(endDate, nominal, startDate, endDate, fixingDays, swapIndex)
+CappedFlooredCmsCoupon
+ql.CappedFlooredCmsCoupon(paymentDate, nominal, startDate, endDate, fixingDays, swapIndex, rate, spread)
+CmsSpreadCoupon
+ql.CmsSpreadCoupon(paymentDate, nominal, startDate, endDate, fixingDays, spreadIndex)
+ql.CmsSpreadCoupon(paymentDate, nominal, startDate, endDate, fixingDays, spreadIndex, gearing=1, spread=0, refPeriodStart=ql.Date(), refPeriodEnd=ql.Date(), dayCounter=ql.DayCounter(), isInArrears=False, exCouponDate=ql.Date())
+nominal = 100.
+startDate = ql.Date(15,12,2020)
+endDate = ql.Date(15,6,2021)
+fixingDays = 2
+swapIndex1 = ql.EuriborSwapIsdaFixA(ql.Period("10Y"))
+swapIndex2 = ql.EuriborSwapIsdaFixA(ql.Period("2Y"))
+spreadIndex = ql.SwapSpreadIndex("CMS 10Y-2Y", swapIndex1, swapIndex2)
+ql.CmsSpreadCoupon(endDate, nominal, startDate, endDate, fixingDays, spreadIndex)
+CappedFlooredCmsSpreadCoupon
+ql.CmsSpreadCoupon(paymentDate, nominal, startDate, endDate, fixingDays, spreadIndex, gearing=1, spread=0, cap=Null, floor=Null, refPeriodStart=ql.Date(), refPeriodEnd=ql.Date(), dayCounter=ql.DayCounter(), isInArrears=False, exCouponDate=ql.Date())
+nominal = 100.
+startDate = ql.Date(15,12,2020)
+endDate = ql.Date(15,6,2021)
+fixingDays = 2
+swapIndex1 = ql.EuriborSwapIsdaFixA(ql.Period("10Y"))
+swapIndex2 = ql.EuriborSwapIsdaFixA(ql.Period("2Y"))
+spreadIndex = ql.SwapSpreadIndex("CMS 10Y-2Y", swapIndex1, swapIndex2)
+ql.CappedFlooredCmsSpreadCoupon(endDate, nominal, startDate, endDate, fixingDays, spreadIndex)
+
+gearing = 1
+spread = 0
+cap=0
+floor=0
+
+ql.CappedFlooredCmsSpreadCoupon(endDate, nominal, startDate, endDate, fixingDays, spreadIndex, gearing, spread, cap, floor)
+
+refPeriodStart = ql.Date()
+refPeriodEnd = ql.Date()
+dayCounter = ql.Actual360()
+isInArrears = False
+exCouponDate = ql.Date()
+ql.CappedFlooredCmsSpreadCoupon(endDate, nominal, startDate, endDate, fixingDays, spreadIndex, gearing, spread, cap, floor, refPeriodStart, refPeriodEnd, dayCounter, isInArrears, exCouponDate)
+Legs
+Leg
+date = ql.Date().todaysDate()
+cf1 = ql.SimpleCashFlow(5.0, date+365)
+cf2 = ql.SimpleCashFlow(5.0, date+365*2)
+cf3 = ql.SimpleCashFlow(105.0, date+365*3)
+leg = ql.Leg([cf1, cf2, cf3])
+FixedRateLeg
+helper class building a sequence of fixed rate coupons
+
+ql.FixedRateLeg(schedule, dayCount, nominals, fixedRate, BusinessDayConvention, FirstPeriodDayCounter, ExCouponPeriod, PaymentCalendar)
+schedule = ql.MakeSchedule(ql.Date(15,6,2020), ql.Date(15,6,2021), ql.Period('6M'))
+dayCount = ql.Actual360()
+leg = ql.FixedRateLeg(schedule, dayCount, [100.], [0.05])
+leg = ql.FixedRateLeg(schedule, ql.Actual360(), [100.], [0.05], ql.Following, ql.Actual360(), ql.Period('3M'), ql.TARGET())
+IborLeg
+helper class building a sequence of capped/floored ibor-rate coupon
+
+ql.IborLeg(nominals, schedule, index, paymentDayCounter = DayCounter(), paymentConvention = Following, fixingDays = 0, gearings = 1, spreads, caps, floors, isInArrears, exCouponPeriod, exCouponCalendar, exCouponConvention = Unadjusted, exCouponEndOfMonth = False)
+schedule = ql.MakeSchedule(ql.Date(15,6,2020), ql.Date(15,6,2021), ql.Period('6M'))
+index = ql.Euribor3M()
+leg = ql.IborLeg([100], schedule, index)
+leg = ql.IborLeg([100], schedule, index, ql.Actual360())
+leg = ql.IborLeg([100], schedule, index, ql.Actual360(), ql.ModifiedFollowing)
+leg = ql.IborLeg([100], schedule, index, ql.Actual360(), ql.ModifiedFollowing, [2])
+leg = ql.IborLeg([100], schedule, index, ql.Actual360(), ql.ModifiedFollowing, fixingDays=[2], gearings=[1])
+
+leg = ql.IborLeg([100], schedule, index, ql.Actual360(), ql.ModifiedFollowing, fixingDays=[2], gearings=[1], spreads=[0])
+leg = ql.IborLeg([100], schedule, index, ql.Actual360(), ql.ModifiedFollowing, fixingDays=[2], gearings=[1], spreads=[0], caps=[0])
+leg = ql.IborLeg([100], schedule, index, ql.Actual360(), ql.ModifiedFollowing, fixingDays=[2], gearings=[1], spreads=[0], floors=[0])
+OvernightLeg
+helper class building a sequence of overnight coupons
+
+ql.OvernightLeg(nominals, schedule, overnightIndex, dayCount, BusinessDayConvention, gearing, spread, TelescopicValueDates)
+nominal = 100
+schedule = ql.MakeSchedule(ql.Date(15,6,2020), ql.Date(15,6,2021), ql.Period('3M'))
+overnightIndex = ql.OvernightIndex('CNYRepo7D', 1, ql.CNYCurrency(), ql.China(), ql.Actual365Fixed())
+ql.OvernightLeg([nominal], schedule, overnightIndex, ql.Actual360(), ql.Following, [1],[0], True)
+Pricers
+BlackIborCouponPricer
+ql.BlackIborCouponPricer(OptionletVolatilityStructureHandle)
+volatility = 0.10;
+vol = ql.ConstantOptionletVolatility(2, ql.TARGET(), ql.Following, volatility, ql.Actual360())
+pricer = ql.BlackIborCouponPricer(ql.OptionletVolatilityStructureHandle(vol))
+Example: In arrears coupon
+
+crv = ql.FlatForward(0, ql.TARGET(), -0.01, ql.Actual360())
+yts = ql.YieldTermStructureHandle(crv)
+index = ql.Euribor3M(yts)
+
+schedule = ql.MakeSchedule(ql.Date(15,6,2021), ql.Date(15,6,2023), ql.Period('6M'))
+
+leg = ql.IborLeg([100], schedule, index, ql.Actual360(), ql.ModifiedFollowing, isInArrears=True)
+
+volatility = 0.10;
+vol = ql.ConstantOptionletVolatility(2, ql.TARGET(), ql.Following, volatility, ql.Actual360())
+pricer = ql.BlackIborCouponPricer(ql.OptionletVolatilityStructureHandle(vol))
+ql.setCouponPricer(leg, pricer)
+
+npv = ql.CashFlows.npv(leg, yts, True)
+print(f"LEG NPV: {npv:,.2f}")
+LinearTsrPricer
+ql.LinearTsrPricer(swaptionVolatilityStructure, meanReversion)
+volQuote = ql.QuoteHandle(ql.SimpleQuote(0.2))
+swaptionVol = ql.ConstantSwaptionVolatility(0, ql.TARGET(), ql.ModifiedFollowing, volQuote, ql.Actual365Fixed())
+swvol_handle = ql.SwaptionVolatilityStructureHandle(swaptionVol)
+
+mean_reversion = ql.QuoteHandle(ql.SimpleQuote(0.01))
+cms_pricer = ql.LinearTsrPricer(swvol_handle, mean_reversion)
+LognormalCmsSpreadPricer
+NumericHaganPricer
+AnalyticHaganPricer
+Cashflow Analysis Functions
+Date Inspectors
+ql.CashFlows.startDate(leg)
+ql.CashFlows.maturityDate(leg)
+Cashflow Inspectors
+the last cashflow paying before or at the given date
+
+ql.CashFlows.previousCashFlowDate(leg, includeSettlementDateFlows, settlementDate=ql.Date())
+ql.CashFlows.previousCashFlowDate(leg, True)
+ql.CashFlows.previousCashFlowDate(leg, True, ql.Date(15,12,2020))
+the first cashflow paying after the given date
+
+ql.CashFlows.nextCashFlowDate(leg, includeSettlementDateFlows, settlementDate=ql.Date())
+YieldTermstructure
+NPV of the cash flows
+
+ql.CashFlows.npv(leg, discountCurve, includeSettlementDateFlows, settlementDate=ql.Date(), npvDate=ql.Date())
+yts = ql.YieldTermStructureHandle(ql.FlatForward(ql.Date(15,1,2020), 0.04, ql.Actual360()))
+ql.CashFlows.npv(leg, yts, True)
+ql.CashFlows.npv(leg, yts, True, ql.Date(15,6,2020))
+ql.CashFlows.npv(leg, yts, True, ql.Date(15,6,2020), ql.Date(15,12,2020))
+Basis-point sensitivity of the cash flows
+
+ql.CashFlows.bps(leg, discountCurve, includeSettlementDateFlows, settlementDate=ql.Date(), npvDate=ql.Date())
+yts = ql.YieldTermStructureHandle(ql.FlatForward(ql.Date(15,1,2020), 0.04, ql.Actual360()))
+ql.CashFlows.bps(leg, yts, True)
+At-the-money rate of the cash flows
+
+ql.CashFlows.atmRate(leg, discountCurve, includeSettlementDateFlows, settlementDate=ql.Date(), ql.npvDate=Date(), npv=Null< Real >())
+crv = ql.FlatForward(ql.Date(15,1,2020), 0.04, ql.Actual360())
+ql.CashFlows.atmRate(leg, crv, True, ql.Date(15,6,2020))
+Yield (a.k.a. Internal Rate of Return, i.e. IRR)
+ql.CashFlows.npv(leg, rate, includeSettlementDateFlows, settlementDate=ql.Date(), npvDate=ql.Date())
+rate = ql.InterestRate(.03, ql.ActualActual(), ql.Compounded, ql.Annual)
+ql.CashFlows.npv(leg, rate, True)
+ql.CashFlows.bps(leg, rate, includeSettlementDateFlows, settlementDate=ql.Date(), npvDate=ql.Date())
+rate = ql.InterestRate(.03, ql.ActualActual(), ql.Compounded, ql.Annual)
+ql.CashFlows.bps(leg, rate, True)
+ql.CashFlows.basisPointValue(leg, InterestRate, includeSettlementDateFlows, settlementDate=ql.Date(), ql.npvDate=Date())
+rate = ql.InterestRate(.03, ql.ActualActual(), ql.Compounded, ql.Annual)
+ql.CashFlows.basisPointValue(leg, rate, True)
+ql.CashFlows.basisPointValue(leg, rate, dayCounter, compounding, frequency, includeSettlementDateFlows, settlementDate=ql.Date(), ql.npvDate=Date())
+ql.CashFlows.basisPointValue(leg, 0.05, ql.Actual360(), ql.Compounded, ql.Annual, True)
+ql.CashFlows.duration(leg, InterestRate, ql.Duration.Type, includeSettlementDateFlows, settlementDate=ql.Date(), npvDate=ql.Date())
+rate = ql.InterestRate(.03, ql.ActualActual(), ql.Compounded, ql.Annual)
+
+ql.CashFlows.duration(leg, rate, ql.Duration.Simple, False)
+ql.CashFlows.duration(leg, rate, ql.Duration.Macaulay, False)
+ql.CashFlows.duration(leg, rate, ql.Duration.Modified, False)
+ql.CashFlows.duration(leg, rate, dayCounter, compounding, frequency, ql.Duration.Type, includeSettlementDateFlows, settlementDate=ql.Date(), npvDate=ql.Date())
+rate = 0.05
+ql.CashFlows.duration(leg, rate, ql.Actual360(), ql.Compounded, ql.Annual, ql.Duration.Simple, False)
+ql.CashFlows.convexity(leg, InterestRate, includeSettlementDateFlows, settlementDate=ql.Date(), npvDate=ql.Date())
+rate = ql.InterestRate(.03, ql.ActualActual(), ql.Compounded, ql.Annual)
+ql.CashFlows.convexity(leg, rate, False)
+ql.CashFlows.convexity(leg, rate, dayCounter, compounding, frequency, includeSettlementDateFlows, settlementDate=ql.Date(), npvDate=ql.Date())
+rate = 0.05
+ql.CashFlows.convexity(leg, rate, ql.Actual360(), ql.Compounded, ql.Annual, False)
+ql.CashFlows.yieldRate(leg, rate, dayCounter, compounding, frequency, includeSettlementDateFlows, settlementDate=ql.Date(), npvDate=ql.Date(), accuracy=1.0e-10, maxIterations=100, guess=0.0)
+ql.CashFlows.yieldRate(leg, 5, ql.Actual360(), ql.Compounded, ql.Annual, True)
+ql.CashFlows.yieldRate(leg, 5, ql.Actual360(), ql.Compounded, ql.Annual, True, ql.Date(15,6,2020))
+ql.CashFlows.yieldRate(leg, 5, ql.Actual360(), ql.Compounded, ql.Annual, True, ql.Date(15,6,2020), ql.Date(15,12,2020))
+ql.CashFlows.yieldRate(leg, 5, ql.Actual360(), ql.Compounded, ql.Annual, True, ql.Date(15,6,2020), ql.Date(15,12,2020), 1e-5)
+ql.CashFlows.yieldRate(leg, 5, ql.Actual360(), ql.Compounded, ql.Annual, True, ql.Date(15,6,2020), ql.Date(15,12,2020), 1e-5, 100)
+ql.CashFlows.yieldRate(leg, 5, ql.Actual360(), ql.Compounded, ql.Annual, True, ql.Date(15,6,2020), ql.Date(15,12,2020), 1e-5, 100, 0.04)
+Z-spread
+implied Z-spread.
+
+ql.CashFlows.zSpread(leg, npv, YieldTermStructure, dayCounter, compounding, frequency, includeSettlementDateFlows, settlementDate=ql.Date(), npvDate=ql.Date(), accuracy=1.0e-10, maxIterations=100, guess=0.0)
+crv = ql.FlatForward(ql.Date(15,1,2020), 0.04, ql.Actual360())
+ql.CashFlows.zSpread(leg, 5.5, crv, ql.Actual360(), ql.Compounded, ql.Annual, True)

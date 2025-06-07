@@ -1,0 +1,52 @@
+[tool.poetry]
+name = "securities-analytics"
+version = "0.1.0"
+description = "A Python Package to calculate fixed income securities analytics."
+authors = ["scoobydoo <joshua.lancaster@lmi.com>"]
+readme = "README.md"
+
+
+packages = [{ include = "securities_analytics" }]
+
+[tool.poetry.dependencies]
+python = ">=3.11,<4.0"
+fire = ">=0.7.0,<0.8.0"
+orjson = ">=3.10.16,<4.0.0"
+httpx = ">=0.28.1,<0.29.0"
+loguru = ">=0.7.3,<0.8.0"
+quantlib = ">=1.37,<2.0"
+pytest = "^8.3.5"
+pandas = "^2.2.3"
+
+
+[tool.poetry.group.dev.dependencies]
+black = "^25.1.0"
+ruff = "^0.11.6"
+isort = "^6.0.1"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-select = ["I", "F", "E", "W"]
+exclude = ["tests/fixtures", "tests/data"]
+
+[tool.ruff.format]
+docstring-code-format = true
+quote-style = "double"
+indent-style = "space"
+
+[tool.ruff.lint]
+fixable = ["ALL"]
+unfixable = []
+
+[tool.isort]
+profile = "black"
+line_length = 100

@@ -1,0 +1,23 @@
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+
+# Poetry virtualenv
+.venv/
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+
+# VSCode settings (optional)
+.vscode/
+
+# Test artifacts
+.coverage
+.pytest_cache/
+htmlcov/
+
+# OS junk
+.DS_Store
+*.log

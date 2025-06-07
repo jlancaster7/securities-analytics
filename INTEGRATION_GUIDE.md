@@ -613,6 +613,47 @@ def price_universe_parallel(cusip_list, num_workers=4):
     return list(results)
 ```
 
+## Snowflake Integration
+
+For Snowflake-specific integration, we provide a complete framework:
+
+```python
+from securities_analytics.data_providers.snowflake import (
+    SnowflakeConfig, TableConfig, SnowflakeConnector, SnowflakeDataProvider
+)
+
+# Configure Snowflake connection
+config = SnowflakeConfig.from_env()  # Uses environment variables
+connector = SnowflakeConnector(config)
+provider = SnowflakeDataProvider(connector, TableConfig())
+
+# Use with market data service
+market_service = MarketDataService(provider=provider)
+```
+
+### Model Validation
+
+Validate your model outputs against historical data:
+
+```python
+from securities_analytics.validation import ModelValidator
+
+validator = ModelValidator(provider, market_service)
+
+# Validate single bond
+result = validator.validate_bond_pricing('912828YK0', date(2024, 11, 15))
+print(f"Model: {result.model_value:.3f}, Market: {result.market_value:.3f}")
+
+# Batch validation
+report = validator.batch_validate(
+    cusip_list=['912828YK0', '38141GXZ2'],
+    date_range=(date(2024, 11, 1), date(2024, 11, 30))
+)
+print(f"Success Rate: {report.success_rate:.1%}")
+```
+
+See the [Snowflake Validation Guide](docs/SNOWFLAKE_VALIDATION_GUIDE.md) for complete details.
+
 ## Next Steps
 
 1. Start with a small subset of bonds to validate the integration

@@ -226,6 +226,8 @@ market_service = MarketDataService(provider=YourDataProvider())
 
 - [Technical Guide](TECHNICAL_GUIDE.md) - Detailed implementation documentation
 - [Integration Guide](INTEGRATION_GUIDE.md) - Step-by-step data integration
+- [Snowflake Integration](SNOWFLAKE_INTEGRATION_README.md) - Snowflake database setup
+- [Validation Guide](docs/SNOWFLAKE_VALIDATION_GUIDE.md) - Model validation framework
 - [Roadmap](ROADMAP.md) - Future enhancements and project direction
 
 ## ⚡ Performance Tips

@@ -10,21 +10,30 @@ A comprehensive fixed income analytics service built on top of QuantLib, designe
 - **Production Ready**: Type hints, error handling, caching, and extensive test coverage
 - **QuantLib Integration**: Built on the industry-standard QuantLib library
 
-## 📋 Recent Enhancements
+## 📁 Architecture Overview
 
-### Fix-to-Float Bond Support
-- Complete implementation for bonds that transition from fixed to floating rate
-- Separate payment schedules for fixed and floating periods
-- Support for different payment frequencies (e.g., semiannual fixed, quarterly floating)
-- Integration with existing spread calculator
-- Callable fix-to-float bond support
-
-### Market Data Service
-- Abstract data provider interface for easy integration with various data sources
-- Mock data provider generating realistic test data
-- Built-in caching for performance optimization
-- QuantLib yield curve handle generation
-- Support for treasury curves, SOFR curves, and credit spreads
+```
+securities_analytics/
+├── bonds/                      # Bond implementations and analytics
+│   ├── base/                   # Abstract base classes
+│   │   ├── bond.py            # AbstractBond base class
+│   │   └── scheduler.py       # Schedule generation interface
+│   ├── fixed_rate_bullets/     # Fixed rate bond implementations
+│   │   └── vanilla/           # Standard fixed-rate bonds
+│   ├── fix_to_float/          # Fix-to-float bond implementation
+│   │   ├── bond.py            # FixToFloatBond class
+│   │   └── schedulers/        # Dual schedule generation
+│   └── analytics/             # Analytics calculations
+│       └── spreads.py         # G-spread, benchmark spread, z-spread
+├── market_data/               # Market data service framework
+│   ├── data_models.py         # Rating, Sector, BondReference, etc.
+│   └── service.py             # DataProvider interface & MarketDataService
+├── models/                    # Financial models
+│   └── hull_white/            # Hull-White model implementation
+└── utils/                     # Utility functions
+    ├── data_imports/          # Curve and data loading utilities
+    └── dates/                 # Date manipulation helpers
+```
 
 ## 🚀 Quick Start
 
@@ -86,24 +95,59 @@ duration = bond.duration(sofr_handle)
 print(f"Price: {clean_price:.3f}, Duration: {duration:.2f}")
 ```
 
-## 📁 Project Structure
+## 📋 Core Components
 
+### Bond Classes
+
+#### AbstractBond
+Base class providing common bond functionality:
+- Day count convention mapping (ACT365, ACT360, 30/360, ACTACT)
+- Settlement date handling
+- QuantLib integration setup
+
+#### FixedRateQLBond
+Standard fixed-rate bond implementation:
+- Yield calculations (YTM, YTC, YTW)
+- Duration and convexity
+- Clean/dirty price conversions
+- Optional callable features
+
+#### FixToFloatBond
+Bonds that transition from fixed to floating rate:
+- Dual schedule generation (fixed and floating periods)
+- Support for different payment frequencies
+- SOFR-based floating legs
+- Callable fix-to-float support
+
+### Analytics
+
+#### BondSpreadCalculator
+Calculates various spread measures:
+- **G-Spread**: Linear interpolation of treasury curve
+- **Benchmark Spread**: Using tenor step-down rules
+- **Z-Spread**: Parallel shift to discount curve
+- Support for callable bonds using yield-to-worst
+
+### Market Data Service
+
+#### DataProvider Interface
+Abstract interface for data sources:
+```python
+class DataProvider(ABC):
+    def get_treasury_curve(self) -> Dict[float, float]
+    def get_sofr_curve(self) -> Dict[float, float]
+    def get_bond_quote(self, cusip: str) -> MarketQuote
+    def get_bond_reference(self, cusip: str) -> BondReference
 ```
-securities_analytics/
-├── bonds/
-│   ├── fixed_rate/         # Fixed rate bond implementation
-│   ├── fix_to_float/       # Fix-to-float bond implementation
-│   └── analytics/          # Spread and analytics calculations
-├── market_data/            # Market data service framework
-│   ├── data_models.py      # Data structures
-│   └── service.py          # Service and provider classes
-├── utils/                  # Utility functions
-└── tests/                  # Comprehensive test suite
-```
+
+#### MockDataProvider
+Realistic test data generation:
+- Treasury curves with proper term structure
+- SOFR curves (5-10bps below treasuries)
+- Credit spreads by rating/sector
+- ~30-40 bond universe with 20% fix-to-float
 
 ## 🧪 Testing
-
-Run the test suite:
 
 ```bash
 # Run all tests
@@ -116,6 +160,12 @@ poetry run pytest --cov=securities_analytics
 poetry run pytest tests/bonds/fix_to_float/
 poetry run pytest tests/market_data/
 ```
+
+### Test Coverage
+- **81 total tests** (78 passing, 3 skipped)
+- Fix-to-float bonds: 22 tests
+- Market data service: 45 tests
+- Existing functionality: 14 tests
 
 ## 📊 Market Data Integration
 
@@ -141,18 +191,36 @@ market_service = MarketDataService(provider=YourDataProvider())
 
 ## 📚 Documentation
 
-- [Project Summary](PROJECT_SUMMARY.md) - Comprehensive overview of all features
-- [Integration Guide](INTEGRATION_GUIDE.md) - Step-by-step guide for data integration
-- [Fix-to-Float Documentation](FIX_TO_FLOAT_DOCUMENTATION.md) - Detailed fix-to-float bond guide
-- [Next Steps](NEXT_STEPS.md) - Roadmap and enhancement ideas
+- [Technical Guide](TECHNICAL_GUIDE.md) - Detailed implementation documentation
+- [Integration Guide](INTEGRATION_GUIDE.md) - Step-by-step data integration
+- [Roadmap](ROADMAP.md) - Future enhancements and project direction
 
-## 🤝 Contributing
+## ⚡ Performance Tips
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+1. **Use Caching**: The MarketDataService includes built-in caching
+2. **Batch Operations**: Process multiple bonds together to reuse curves
+3. **Parallel Processing**: Use multiprocessing for large portfolios
+
+## 🛠️ Development
+
+### Dependencies
+- **QuantLib-Python** (1.35): Core pricing library
+- **pandas** (2.2.3): Data manipulation
+- **httpx** (0.28.1): HTTP client for data fetching
+- **loguru** (0.7.3): Logging
+- **orjson** (3.10.12): Fast JSON parsing
+- **quantlib-stubs** (1.35.2): Type hints for QuantLib
+
+### Code Style
+- Type hints throughout for better IDE support
+- Comprehensive docstrings
+- Following PEP 8 guidelines
+- Extensive error handling
+
+## 🐛 Known Issues
+
+- Some fix-to-float integration tests are skipped due to date handling complexities
+- These can be resolved by ensuring proper evaluation date setup in production
 
 ## 📝 License
 
@@ -162,24 +230,6 @@ This project is proprietary. All rights reserved.
 
 - Built on [QuantLib](https://www.quantlib.org/) - The open-source library for quantitative finance
 - Inspired by industry best practices in fixed income analytics
-
-## ⚡ Performance Tips
-
-1. **Use Caching**: The MarketDataService includes built-in caching
-2. **Batch Operations**: Process multiple bonds together to reuse curves
-3. **Parallel Processing**: Use multiprocessing for large portfolios
-
-## 🐛 Known Issues
-
-- Some fix-to-float integration tests are skipped due to date handling complexities
-- These can be resolved by ensuring proper evaluation date setup in production
-
-## 📧 Support
-
-For questions or issues:
-1. Check the documentation
-2. Review the test examples
-3. Open an issue with a minimal reproducible example
 
 ---
 

@@ -1,6 +1,9 @@
+from typing import Union
 from QuantLib.QuantLib import Date, DayCounter
 
+from ..base.bond import AbstractBond
 from ..fixed_rate_bullets.vanilla.bond import FixedRateQLBond
+from ..fix_to_float.bond import FixToFloatBond
 
 
 class BondSpreadCalculator:
@@ -16,7 +19,7 @@ class BondSpreadCalculator:
 
     def __init__(
         self,
-        bond: FixedRateQLBond,  # Must be an AbstractBond or a child (e.g., FixedRateQLBond)
+        bond: Union[FixedRateQLBond, FixToFloatBond, AbstractBond],  # Any bond inheriting from AbstractBond
         treasury_curve: dict[float, float],
         original_benchmark_tenor: int,  # e.g. 10 if originally a 10y bond
         use_earliest_call: bool = True,
@@ -28,7 +31,7 @@ class BondSpreadCalculator:
         :param use_earliest_call: If True, we assume the workout date is the earliest call date
                                   if there's a call. Otherwise we do maturity.
         """
-        self.bond: FixedRateQLBond = bond
+        self.bond = bond  # Can be any AbstractBond
         self.treasury_curve: dict[float, float] = treasury_curve
         # Sort the curve keys to make sure interpolation is possible
         self.sorted_tenors: list[float] = sorted(self.treasury_curve.keys())

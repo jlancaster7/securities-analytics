@@ -372,6 +372,111 @@ dv01 = bond.dv01(yield_curve_handle)
 ### Issue: Duration seems too high/low
 **Solution**: Verify yield curve is properly constructed
 
+## SOFR Curve Construction
+
+The service includes advanced SOFR curve construction capabilities for accurate forward rate projections in floating rate bonds:
+
+### Architecture
+
+```
+curves/
+└── sofr/
+    ├── data_models.py    # Data structures for curve points
+    ├── loader.py         # CSV and data loading
+    ├── builder.py        # QuantLib curve construction
+    └── curve.py          # High-level interface
+```
+
+### Components
+
+#### Data Models (`data_models.py`)
+- **`SOFRCurvePoint`**: Individual curve point with tenor and rate
+- **`SOFRCurveData`**: Complete curve data with helper methods
+- **`TenorUnit`**: Enum for tenor specifications (ON, Days, Weeks, Months, Years)
+
+#### Curve Loader (`loader.py`)
+Loads SOFR curve data from various sources:
+```python
+loader = SOFRCurveLoader()
+curve_data = loader.load_from_csv('path/to/sofr_curve.csv')
+```
+
+Features:
+- Parses tenor strings (e.g., "3M", "2Y", "ON")
+- Converts yields from percent to decimal
+- Handles various date formats
+
+#### Curve Builder (`builder.py`)
+Bootstraps SOFR curves using QuantLib:
+```python
+builder = SOFRCurveBuilder()
+ql_curve = builder.build_curve(curve_data)
+```
+
+Process:
+1. Creates deposit rate helpers for short tenors (ON to 1Y)
+2. Creates OIS swap rate helpers for long tenors (1Y+)
+3. Bootstraps using `PiecewiseLogCubicDiscount`
+4. Enables extrapolation for long-dated instruments
+
+#### Main Interface (`curve.py`)
+High-level `SOFRCurve` class:
+```python
+# Load from CSV
+sofr_curve = SOFRCurve.from_csv('tests/data/sofr_curve.csv')
+
+# Get discount factors
+df = sofr_curve.get_discount_factor(datetime(2026, 4, 17))
+
+# Get forward rates
+forward_rate = sofr_curve.get_forward_rate(
+    start_date=datetime(2026, 1, 1),
+    end_date=datetime(2026, 4, 1),
+    compounding=ql.Compounded
+)
+
+# Create SOFR index linked to curve
+sofr_index = sofr_curve.create_sofr_index()
+```
+
+### Integration with Floating Rate Bonds
+
+The `FloatingRateBond` class accepts an optional `sofr_curve` parameter for market-based forward projections:
+
+```python
+from securities_analytics.bonds.floating_rate import FloatingRateBond
+from securities_analytics.curves.sofr import SOFRCurve
+
+# Load market curve
+sofr_curve = SOFRCurve.from_csv('sofr_data.csv')
+
+# Create floating rate bond with market curve
+bond = FloatingRateBond(
+    face_value=1000000,
+    maturity_date=datetime(2030, 6, 15),
+    floating_index=ql.Sofr(),
+    spread=0.0125,  # 125 bps
+    settlement_date=datetime.now(),
+    day_count="Actual/360",
+    settlement_days=2,
+    frequency=4,
+    sofr_curve=sofr_curve  # Market-based projections
+)
+
+# Get projected cashflows using forward rates
+cashflows = bond.get_projected_cashflows()
+
+# Calculate spread duration
+spread_duration = bond.get_spread_duration()
+```
+
+### Key Features
+
+1. **Forward Rate Projections**: Uses bootstrapped curve for accurate forward rate calculations
+2. **Spread Duration**: Calculates sensitivity to spread changes
+3. **Cashflow Projections**: Projects floating cashflows using market-implied forward rates
+4. **Flexible Data Loading**: Supports CSV files and custom data formats
+
 ## QuantLib Reference
 
 For comprehensive QuantLib documentation and examples covering all the patterns used in this service, refer to our [QuantLib Reference Guide](quantlib-reference.md). This guide contains detailed examples for:

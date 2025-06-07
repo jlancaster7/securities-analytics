@@ -54,6 +54,34 @@ class WorkDataProvider(DataProvider):
         curve_data = self.curve_service.get_curve('USD_SOFR', datetime.now())
         return self._convert_curve_format(curve_data)
     
+    def get_sofr_curve_data(self) -> 'SOFRCurveData':
+        """Get SOFR curve data for advanced analytics."""
+        from securities_analytics.curves.sofr import SOFRCurveData, SOFRCurvePoint, TenorUnit
+        
+        # Get raw curve data from your source
+        raw_data = self.curve_service.get_detailed_curve('USD_SOFR', datetime.now())
+        
+        # Convert to SOFRCurvePoint objects
+        points = []
+        for tenor, rate, cusip in raw_data:
+            # Parse tenor string (e.g., "3M", "2Y")
+            value, unit = self._parse_tenor(tenor)
+            point = SOFRCurvePoint(
+                tenor_string=tenor,
+                tenor_value=value,
+                tenor_unit=unit,
+                rate=rate / 100.0,  # Convert from percent to decimal
+                description=f"SOFR {tenor}",
+                cusip=cusip,
+                source="INTERNAL"
+            )
+            points.append(point)
+        
+        return SOFRCurveData(
+            curve_date=datetime.now(),
+            points=points
+        )
+    
     def get_bond_quote(self, cusip: str) -> MarketQuote:
         """Get latest market quote from price database."""
         price_data = self.price_db.get_latest_quote(cusip)
@@ -204,7 +232,9 @@ market_service = MarketDataService(provider=provider)
 ```python
 import QuantLib as ql
 from securities_analytics.bonds.fix_to_float.bond import FixToFloatBond
+from securities_analytics.bonds.floating_rate.bond import FloatingRateBond
 from securities_analytics.bonds.analytics.spreads import BondSpreadCalculator
+from securities_analytics.curves.sofr import SOFRCurve
 
 # Set evaluation date
 ql.Settings.instance().evaluationDate = ql.Date.todaysDate()
@@ -212,6 +242,10 @@ ql.Settings.instance().evaluationDate = ql.Date.todaysDate()
 # Get market data
 sofr_handle = market_service.get_sofr_curve_handle()
 treasury_curve = market_service.get_treasury_curve()
+
+# For advanced floating rate analytics, create a SOFRCurve
+sofr_curve_data = market_service.provider.get_sofr_curve_data()
+sofr_curve = SOFRCurve(sofr_curve_data)
 
 # Create SOFR index
 sofr_index = ql.OvernightIndex(
@@ -300,6 +334,82 @@ Treasury and SOFR curves should provide tenor-yield pairs:
     2.0: 0.0465,    # 2-year: 4.65%
     # ... etc
 }
+```
+
+### 4. Using SOFR Curves with Floating Rate Bonds
+
+For floating rate bonds, you can leverage market-based SOFR curves for more accurate forward rate projections:
+
+```python
+from securities_analytics.bonds.floating_rate import FloatingRateBond
+from securities_analytics.curves.sofr import SOFRCurve
+
+# Load SOFR curve from your data
+sofr_curve_data = market_service.provider.get_sofr_curve_data()
+sofr_curve = SOFRCurve(sofr_curve_data)
+
+# Or load from CSV file (for testing)
+# sofr_curve = SOFRCurve.from_csv('path/to/sofr_curve.csv')
+
+# Create floating rate bond with market curve
+floating_bond = FloatingRateBond(
+    face_value=1000000,
+    maturity_date=datetime(2030, 6, 15),
+    floating_index=ql.Sofr(),
+    spread=0.0125,  # 125 bps
+    settlement_date=datetime.now() + timedelta(days=2),
+    day_count="Actual/360",
+    settlement_days=2,
+    frequency=4,  # Quarterly
+    sofr_curve=sofr_curve  # Pass the market curve
+)
+
+# Get projected cashflows using forward rates
+projected_cashflows = floating_bond.get_projected_cashflows()
+for date, amount in projected_cashflows:
+    print(f"{date}: ${amount:,.2f}")
+
+# Calculate spread duration
+spread_duration = floating_bond.get_spread_duration()
+print(f"Spread Duration: {spread_duration:.2f} years")
+
+# Price using market curve
+price = floating_bond.clean_price()
+print(f"Price (using market curve): {price:.3f}")
+```
+
+### 5. SOFR Curve Analytics
+
+The SOFR curve object provides additional analytics capabilities:
+
+```python
+# Get forward rates
+start = datetime(2026, 1, 1)
+end = datetime(2026, 4, 1)
+forward_rate = sofr_curve.get_forward_rate(start, end, ql.Compounded)
+print(f"3M forward rate starting Jan 2026: {forward_rate*100:.3f}%")
+
+# Get forward curve for a period
+forward_curve = sofr_curve.get_forward_curve(
+    start_date=datetime(2025, 7, 1),
+    end_date=datetime(2027, 7, 1),
+    frequency=4  # Quarterly
+)
+
+# Plot forward curve
+import pandas as pd
+import matplotlib.pyplot as plt
+
+df = pd.DataFrame(list(forward_curve.items()), columns=['Date', 'Rate'])
+df['Rate'] = df['Rate'] * 100  # Convert to percentage
+
+plt.figure(figsize=(10, 6))
+plt.plot(df['Date'], df['Rate'])
+plt.xlabel('Date')
+plt.ylabel('Forward Rate (%)')
+plt.title('SOFR Forward Curve')
+plt.grid(True)
+plt.show()
 ```
 
 ## Common Integration Patterns

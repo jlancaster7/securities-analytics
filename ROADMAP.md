@@ -1,5 +1,16 @@
 # Next Steps & Future Enhancements
 
+## Recently Completed ✅
+
+### SOFR Curve Construction (Completed)
+- ✅ Created comprehensive SOFR curve data models
+- ✅ Implemented CSV loader for curve data
+- ✅ Built QuantLib curve bootstrapping with deposit and swap helpers
+- ✅ Integrated SOFR curves with floating rate bonds
+- ✅ Added forward rate projections for floating cashflows
+- ✅ Implemented spread duration calculations
+- ✅ Created 12 tests with full coverage
+
 ## Immediate Next Steps (At Work)
 
 ### 1. Data Integration (Week 1)

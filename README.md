@@ -9,6 +9,8 @@ A comprehensive fixed income analytics service built on top of QuantLib, designe
 - **Market Data Framework**: Flexible data provider interface with mock data for testing
 - **Production Ready**: Type hints, error handling, caching, and extensive test coverage
 - **QuantLib Integration**: Built on the industry-standard QuantLib library
+- **Floating Rate Support**: Full support for LIBOR, SOFR, and other floating indices with caps/floors
+- **SOFR Curve Construction**: Advanced curve bootstrapping for accurate forward rate projections
 
 ## 📁 Architecture Overview
 
@@ -23,8 +25,17 @@ securities_analytics/
 │   ├── fix_to_float/          # Fix-to-float bond implementation
 │   │   ├── bond.py            # FixToFloatBond class
 │   │   └── schedulers/        # Dual schedule generation
+│   ├── floating_rate/         # Floating rate bond implementation
+│   │   ├── bond.py            # FloatingRateBond class
+│   │   └── schedulers/        # Floating schedule generation
 │   └── analytics/             # Analytics calculations
 │       └── spreads.py         # G-spread, benchmark spread, z-spread
+├── curves/                    # Curve construction
+│   └── sofr/                  # SOFR curve bootstrapping
+│       ├── data_models.py     # Curve data structures
+│       ├── loader.py          # Data loading utilities
+│       ├── builder.py         # QuantLib curve builder
+│       └── curve.py           # High-level interface
 ├── market_data/               # Market data service framework
 │   ├── data_models.py         # Rating, Sector, BondReference, etc.
 │   └── service.py             # DataProvider interface & MarketDataService
@@ -79,7 +90,7 @@ sofr_index = ql.OvernightIndex(
 )
 
 # Create fix-to-float bond
-bond = FixToFloatBond(
+fix_to_float = FixToFloatBond(
     face_value=1000000,
     maturity_date=datetime(2034, 3, 15),
     switch_date=datetime(2027, 3, 15),
@@ -89,10 +100,24 @@ bond = FixToFloatBond(
     floating_index=sofr_index,
 )
 
+# Create floating rate bond
+from securities_analytics.bonds.floating_rate import FloatingRateBond
+
+libor_3m = ql.USDLibor(ql.Period('3M'), curve_handle)
+floater = FloatingRateBond(
+    face_value=1000000,
+    maturity_date=datetime(2029, 3, 15),
+    floating_index=libor_3m,
+    spread=0.0075,  # 75 bps
+    settlement_date=datetime(2024, 3, 15),
+    day_count="ACT360",
+    settlement_days=2,
+)
+
 # Calculate analytics
-clean_price = bond.clean_price(sofr_handle)
-duration = bond.duration(sofr_handle)
-print(f"Price: {clean_price:.3f}, Duration: {duration:.2f}")
+clean_price = floater.clean_price(curve_handle)
+duration = floater.duration(curve_handle)
+print(f"Floater - Price: {clean_price:.3f}, Duration: {duration:.2f}")
 ```
 
 ## 📋 Core Components
@@ -118,6 +143,13 @@ Bonds that transition from fixed to floating rate:
 - Support for different payment frequencies
 - SOFR-based floating legs
 - Callable fix-to-float support
+
+#### FloatingRateBond
+Pure floating rate bonds:
+- Support for IBOR and overnight indices
+- Caps, floors, and gearing (leverage)
+- Automatic pricer setup for floating coupons
+- Works with spread calculator
 
 ### Analytics
 
@@ -162,8 +194,9 @@ poetry run pytest tests/market_data/
 ```
 
 ### Test Coverage
-- **81 total tests** (78 passing, 3 skipped)
+- **103 total tests** (99 passing, 1 known date adjustment, 3 skipped)
 - Fix-to-float bonds: 22 tests
+- Floating rate bonds: 22 tests
 - Market data service: 45 tests
 - Existing functionality: 14 tests
 

@@ -54,6 +54,7 @@ The system uses an abstract base class pattern where all bonds inherit from `Abs
 - `AbstractBond` provides day count mapping, settlement handling, and QuantLib setup
 - `FixedRateQLBond` implements standard fixed-rate bonds with optional callable features
 - `FixToFloatBond` uses a composite approach, creating separate fixed and floating legs
+- `FloatingRateBond` handles pure floating rate bonds with IBOR/overnight indices
 
 ### Fix-to-Float Implementation
 Fix-to-float bonds are implemented using QuantLib's composite bond approach:
@@ -61,6 +62,13 @@ Fix-to-float bonds are implemented using QuantLib's composite bond approach:
 2. Fixed leg uses `ql.FixedRateLeg` with semiannual payments
 3. Floating leg uses `ql.OvernightLeg` (not `ql.IborLeg`) for SOFR-based payments
 4. The bond combines both legs into a single `ql.Bond` object
+
+### Floating Rate Bonds
+Pure floating rate bonds require special handling:
+1. Use `ql.FloatingRateBond` for traditional IBOR indices
+2. Use leg-based approach with `ql.OvernightLeg` for overnight indices
+3. **Must set up pricer** for floating coupons using `ql.BlackIborCouponPricer`
+4. Support caps, floors, and gearing (leverage) features
 
 ### Market Data Pattern
 The system uses a provider pattern for market data abstraction:
@@ -105,6 +113,7 @@ handle = ql.YieldTermStructureHandle(curve)
 
 ### Test Organization
 - `tests/bonds/fix_to_float/`: Fix-to-float bond tests (22 tests)
+- `tests/bonds/floating_rate/`: Floating rate bond tests (22 tests)
 - `tests/market_data/`: Market data service tests (45 tests)
 - `tests/bonds/fixed_rate_bullets/`: Fixed rate bond tests
 - `tests/bonds/analytics/`: Spread calculation tests
@@ -133,6 +142,23 @@ bond = FixToFloatBond(
     floating_index=sofr_index,
     fixed_frequency=2,                  # Semiannual
     floating_frequency=4,               # Quarterly
+)
+```
+
+### Creating a Floating Rate Bond
+```python
+libor_3m = ql.USDLibor(ql.Period('3M'), curve_handle)
+floater = FloatingRateBond(
+    face_value=1000000,
+    maturity_date=datetime(2029, 3, 15),
+    floating_index=libor_3m,
+    spread=0.0075,                      # 75 bps
+    settlement_date=datetime(2024, 3, 15),
+    day_count="ACT360",
+    settlement_days=2,
+    frequency=4,                        # Quarterly
+    caps=[0.08],                        # 8% cap
+    floors=[0.02],                      # 2% floor
 )
 ```
 

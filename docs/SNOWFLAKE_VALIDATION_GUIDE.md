@@ -55,16 +55,49 @@ Snowflake Database
 
 ## Configuration
 
-### Environment Variables
+### OAuth Authentication (Recommended)
 
 ```bash
-export SNOWFLAKE_ACCOUNT='your_account'
+# Snowflake connection settings
+export SNOWFLAKE_ACCOUNT_IDENTIFIER='your_account.region'
+export SNOWFLAKE_USER='your_username@company.com'
 export SNOWFLAKE_WAREHOUSE='your_warehouse'
 export SNOWFLAKE_DATABASE='MARKET_DATA'
 export SNOWFLAKE_SCHEMA='BONDS'
-export SNOWFLAKE_USER='your_username'
-export SNOWFLAKE_PASSWORD='your_password'
 export SNOWFLAKE_ROLE='ANALYST_ROLE'
+
+# OAuth credentials
+export SNOWFLAKE_OAUTH_CLIENT_ID='your-client-id'
+export SNOWFLAKE_OAUTH_CLIENT_SECRET='your-client-secret'
+export SNOWFLAKE_OAUTH_SCOPE='session:role:ANALYST_ROLE'
+export SNOWFLAKE_OAUTH_TOKEN_ENDPOINT='https://your_account.snowflakecomputing.com/oauth/token'  # Optional
+```
+
+### Programmatic OAuth Setup
+
+```python
+from securities_analytics.data_providers.snowflake import (
+    SnowflakeConfig, OAuthConfig, SnowflakeConnector, SnowflakeDataProvider
+)
+
+# Create configs
+snowflake_config = SnowflakeConfig(
+    account_identifier="myaccount.us-east-1",
+    user="myuser@company.com",
+    warehouse="COMPUTE_WH",
+    database="MARKET_DATA",
+    schema="BONDS"
+)
+
+oauth_config = OAuthConfig(
+    client_id="your-client-id",
+    client_secret="your-client-secret",
+    scope="session:role:ANALYST_ROLE"
+)
+
+# Create OAuth-enabled connector
+connector = SnowflakeConnector(snowflake_config, oauth_config)
+provider = SnowflakeDataProvider(connector)
 ```
 
 ### Table Configuration
@@ -209,10 +242,17 @@ When you're at work with Snowflake access, implement these methods:
    ```python
    import snowflake.connector
    
+   # Get OAuth token if using OAuth
+   if self._token_provider:
+       token = self._token_provider.get_token()
+       self.config.token = token
+   
+   # Connect with OAuth
    self._connection = snowflake.connector.connect(
-       user=self.config.username,
-       password=self.config.password,
-       account=self.config.account,
+       account=self.config.account_identifier,
+       user=self.config.user,
+       authenticator='oauth',
+       token=self.config.token,
        warehouse=self.config.warehouse,
        database=self.config.database,
        schema=self.config.schema,
@@ -220,7 +260,38 @@ When you're at work with Snowflake access, implement these methods:
    )
    ```
 
-2. **SnowflakeConnector.execute_query()**
+2. **OAuthTokenProvider.get_token()**
+   ```python
+   import requests
+   from datetime import datetime, timedelta
+   
+   # Check if token is still valid
+   if self._token and self._token_expiry and datetime.now() < self._token_expiry:
+       return self._token
+   
+   # Request new token
+   token_url = self.oauth_config.token_endpoint or \
+       f"https://{self.config.account_identifier}.snowflakecomputing.com/oauth/token"
+   
+   data = {
+       'grant_type': 'client_credentials',
+       'client_id': self.oauth_config.client_id,
+       'client_secret': self.oauth_config.client_secret,
+       'scope': self.oauth_config.scope
+   }
+   
+   response = requests.post(token_url, data=data)
+   response.raise_for_status()
+   
+   token_data = response.json()
+   self._token = token_data['access_token']
+   expires_in = token_data.get('expires_in', 3600)
+   self._token_expiry = datetime.now() + timedelta(seconds=expires_in - 60)
+   
+   return self._token
+   ```
+
+3. **SnowflakeConnector.execute_query()**
    ```python
    cursor = self._connection.cursor()
    try:
@@ -232,13 +303,13 @@ When you're at work with Snowflake access, implement these methods:
        cursor.close()
    ```
 
-3. **SnowflakeDataProvider methods**
+4. **SnowflakeDataProvider methods**
    - `get_treasury_curve()` - Uncomment and test
    - `get_sofr_curve_data()` - Uncomment and test
    - `get_bond_reference()` - Uncomment and test
    - `get_bond_quote()` - Uncomment and test
 
-4. **ModelValidator._create_bond()**
+5. **ModelValidator._create_bond()**
    - Map bond types to appropriate classes
    - Handle fix-to-float specific fields
    - Create SOFR index for floating bonds

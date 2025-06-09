@@ -615,20 +615,56 @@ def price_universe_parallel(cusip_list, num_workers=4):
 
 ## Snowflake Integration
 
-For Snowflake-specific integration, we provide a complete framework:
+For Snowflake-specific integration, we provide a complete framework with OAuth support:
+
+### OAuth Authentication (Recommended)
 
 ```python
 from securities_analytics.data_providers.snowflake import (
-    SnowflakeConfig, TableConfig, SnowflakeConnector, SnowflakeDataProvider
+    SnowflakeConfig, OAuthConfig, SnowflakeConnector, SnowflakeDataProvider
 )
 
-# Configure Snowflake connection
-config = SnowflakeConfig.from_env()  # Uses environment variables
-connector = SnowflakeConnector(config)
-provider = SnowflakeDataProvider(connector, TableConfig())
+# Configure OAuth authentication
+snowflake_config = SnowflakeConfig(
+    account_identifier="myaccount.us-east-1",
+    user="myuser@company.com",
+    warehouse="COMPUTE_WH",
+    database="MARKET_DATA",
+    schema="BONDS"
+)
+
+oauth_config = OAuthConfig(
+    client_id="your-client-id",
+    client_secret="your-client-secret", 
+    scope="session:role:ANALYST_ROLE"
+)
+
+# Create OAuth-enabled connector
+connector = SnowflakeConnector(snowflake_config, oauth_config)
+provider = SnowflakeDataProvider(connector)
 
 # Use with market data service
 market_service = MarketDataService(provider=provider)
+```
+
+### Environment Variables
+
+```bash
+# Snowflake settings
+export SNOWFLAKE_ACCOUNT_IDENTIFIER='myaccount.us-east-1'
+export SNOWFLAKE_USER='myuser@company.com'
+export SNOWFLAKE_WAREHOUSE='COMPUTE_WH'
+export SNOWFLAKE_DATABASE='MARKET_DATA'
+export SNOWFLAKE_SCHEMA='BONDS'
+
+# OAuth credentials
+export SNOWFLAKE_OAUTH_CLIENT_ID='your-client-id'
+export SNOWFLAKE_OAUTH_CLIENT_SECRET='your-client-secret'
+export SNOWFLAKE_OAUTH_SCOPE='session:role:ANALYST_ROLE'
+
+# Create from environment
+snowflake_config = SnowflakeConfig.from_env()
+oauth_config = OAuthConfig.from_env()
 ```
 
 ### Model Validation

@@ -9,25 +9,24 @@ from typing import Optional
 class SnowflakeConfig:
     """Snowflake connection configuration.
     
-    Credentials can be provided directly or via environment variables:
+    Supports OAuth authentication via environment variables:
+    - SNOWFLAKE_ACCOUNT_IDENTIFIER
     - SNOWFLAKE_USER
-    - SNOWFLAKE_PASSWORD
-    - SNOWFLAKE_ACCOUNT
     - SNOWFLAKE_WAREHOUSE
     - SNOWFLAKE_DATABASE
     - SNOWFLAKE_SCHEMA
     - SNOWFLAKE_ROLE
     """
-    account: str
+    account_identifier: str
+    user: str
     warehouse: str
     database: str
     schema: str
     role: str = "ANALYST_ROLE"
     
-    # Authentication options
-    username: Optional[str] = None
-    password: Optional[str] = None
-    private_key_path: Optional[str] = None  # For key-pair authentication
+    # OAuth authentication
+    authenticator: str = "oauth"
+    token: Optional[str] = None  # Will be set by OAuth token provider
     
     # Connection settings
     login_timeout: int = 60
@@ -37,14 +36,38 @@ class SnowflakeConfig:
     def from_env(cls) -> 'SnowflakeConfig':
         """Create config from environment variables."""
         return cls(
-            account=os.environ.get('SNOWFLAKE_ACCOUNT', ''),
+            account_identifier=os.environ.get('SNOWFLAKE_ACCOUNT_IDENTIFIER', ''),
+            user=os.environ.get('SNOWFLAKE_USER', ''),
             warehouse=os.environ.get('SNOWFLAKE_WAREHOUSE', ''),
             database=os.environ.get('SNOWFLAKE_DATABASE', ''),
             schema=os.environ.get('SNOWFLAKE_SCHEMA', ''),
-            role=os.environ.get('SNOWFLAKE_ROLE', 'ANALYST_ROLE'),
-            username=os.environ.get('SNOWFLAKE_USER'),
-            password=os.environ.get('SNOWFLAKE_PASSWORD'),
-            private_key_path=os.environ.get('SNOWFLAKE_PRIVATE_KEY_PATH')
+            role=os.environ.get('SNOWFLAKE_ROLE', 'ANALYST_ROLE')
+        )
+
+
+@dataclass
+class OAuthConfig:
+    """OAuth configuration for Snowflake authentication.
+    
+    Environment variables:
+    - SNOWFLAKE_OAUTH_CLIENT_ID
+    - SNOWFLAKE_OAUTH_CLIENT_SECRET
+    - SNOWFLAKE_OAUTH_SCOPE
+    - SNOWFLAKE_OAUTH_TOKEN_ENDPOINT (optional)
+    """
+    client_id: str
+    client_secret: str
+    scope: str
+    token_endpoint: Optional[str] = None
+    
+    @classmethod
+    def from_env(cls) -> 'OAuthConfig':
+        """Create OAuth config from environment variables."""
+        return cls(
+            client_id=os.environ.get('SNOWFLAKE_OAUTH_CLIENT_ID', ''),
+            client_secret=os.environ.get('SNOWFLAKE_OAUTH_CLIENT_SECRET', ''),
+            scope=os.environ.get('SNOWFLAKE_OAUTH_SCOPE', ''),
+            token_endpoint=os.environ.get('SNOWFLAKE_OAUTH_TOKEN_ENDPOINT')
         )
 
 

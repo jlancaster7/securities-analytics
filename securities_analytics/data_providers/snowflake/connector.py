@@ -7,7 +7,7 @@ from typing import Dict, Optional, Any, List
 import pandas as pd
 from loguru import logger
 
-from .config import SnowflakeConfig
+from .config import SnowflakeConfig, OAuthConfig
 
 
 class QueryCache:
@@ -43,33 +43,91 @@ class QueryCache:
         self._cache.clear()
 
 
+class OAuthTokenProvider:
+    """Handles OAuth token acquisition and refresh."""
+    
+    def __init__(self, oauth_config: OAuthConfig):
+        """Initialize OAuth token provider.
+        
+        Args:
+            oauth_config: OAuth configuration
+        """
+        self.oauth_config = oauth_config
+        self._token = None
+        self._token_expiry = None
+    
+    def get_token(self) -> str:
+        """Get valid OAuth token, refreshing if necessary.
+        
+        TODO: Implement actual OAuth token acquisition:
+        import requests
+        from datetime import datetime, timedelta
+        
+        # Check if token is still valid
+        if self._token and self._token_expiry and datetime.now() < self._token_expiry:
+            return self._token
+        
+        # Request new token
+        token_url = self.oauth_config.token_endpoint or f"https://{account_identifier}.snowflakecomputing.com/oauth/token"
+        
+        data = {
+            'grant_type': 'client_credentials',
+            'client_id': self.oauth_config.client_id,
+            'client_secret': self.oauth_config.client_secret,
+            'scope': self.oauth_config.scope
+        }
+        
+        response = requests.post(token_url, data=data)
+        response.raise_for_status()
+        
+        token_data = response.json()
+        self._token = token_data['access_token']
+        expires_in = token_data.get('expires_in', 3600)
+        self._token_expiry = datetime.now() + timedelta(seconds=expires_in - 60)  # 60s buffer
+        
+        return self._token
+        """
+        raise NotImplementedError("OAuth token acquisition not implemented. Install requests library.")
+
+
 class SnowflakeConnector:
     """Manages Snowflake database connections with pooling and caching.
     
+    Supports OAuth authentication for Snowflake.
     Note: Actual Snowflake connection requires snowflake-connector-python:
     pip install snowflake-connector-python
     """
     
-    def __init__(self, config: SnowflakeConfig):
+    def __init__(self, config: SnowflakeConfig, oauth_config: Optional[OAuthConfig] = None):
         """Initialize connector with configuration.
         
         Args:
             config: Snowflake connection configuration
+            oauth_config: Optional OAuth configuration for token-based auth
         """
         self.config = config
+        self.oauth_config = oauth_config
         self._connection = None
         self._cache = QueryCache()
+        self._token_provider = OAuthTokenProvider(oauth_config) if oauth_config else None
         
     def connect(self) -> None:
-        """Establish connection to Snowflake.
+        """Establish connection to Snowflake using OAuth.
         
         TODO: Implement actual Snowflake connection:
         import snowflake.connector
         
+        # Get OAuth token if using OAuth
+        if self._token_provider:
+            token = self._token_provider.get_token()
+            self.config.token = token
+        
+        # Connect with OAuth
         self._connection = snowflake.connector.connect(
-            user=self.config.username,
-            password=self.config.password,
-            account=self.config.account,
+            account=self.config.account_identifier,
+            user=self.config.user,
+            authenticator=self.config.authenticator,
+            token=self.config.token,
             warehouse=self.config.warehouse,
             database=self.config.database,
             schema=self.config.schema,

@@ -14,7 +14,7 @@ from securities_analytics.curves.sofr import (
     SOFRCurveData, SOFRCurvePoint, TenorUnit
 )
 
-from .config import SnowflakeConfig, TableConfig
+from .config import SnowflakeConfig, OAuthConfig, TableConfig
 from .connector import SnowflakeConnector
 from . import queries
 
@@ -27,17 +27,37 @@ class SnowflakeDataProvider(DataProvider):
     - Historical analytics for prices and risk measures
     - Treasury rates for government curves
     - SOFR swap rates for forward curves
+    
+    Supports OAuth authentication when properly configured.
     """
     
     def __init__(self, connector: SnowflakeConnector, table_config: TableConfig):
         """Initialize with Snowflake connector and table configuration.
         
         Args:
-            connector: Snowflake database connector
+            connector: Snowflake database connector (can be OAuth-enabled)
             table_config: Table names and column mappings
         """
         self.connector = connector
         self.config = table_config
+        
+    @classmethod
+    def from_oauth_config(cls, 
+                         snowflake_config: SnowflakeConfig,
+                         oauth_config: OAuthConfig,
+                         table_config: Optional[TableConfig] = None) -> 'SnowflakeDataProvider':
+        """Create provider with OAuth authentication.
+        
+        Args:
+            snowflake_config: Snowflake connection settings
+            oauth_config: OAuth authentication settings
+            table_config: Optional table configuration (defaults to standard names)
+            
+        Returns:
+            Configured SnowflakeDataProvider instance
+        """
+        connector = SnowflakeConnector(snowflake_config, oauth_config)
+        return cls(connector, table_config or TableConfig())
         
     def get_treasury_curve(self, as_of_date: Optional[date] = None) -> Dict[float, float]:
         """Get treasury curve from database.
